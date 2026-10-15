@@ -40,7 +40,7 @@ bash lab.sh test
 bash lab.sh extend
 ```
 
-test kiểm tra phần mẫu; extend kiểm tra phần tự làm. Sinh viên cần hoàn thiện TODO; extend có thể chưa đạt ở bản khởi đầu.
+test kiểm tra phần mẫu; extend kiểm tra bộ lọc mở rộng. Nhánh này hoàn thiện cả hai phần, kết quả mong đợi của mỗi lệnh là `FAILED=0`.
 
 [Hướng dẫn đầy đủ](HUONG_DAN.md) · [Hướng dẫn mã nguồn](Ma_nguon/README.md)
 
@@ -50,14 +50,14 @@ Không đưa .local, mật khẩu hoặc dữ liệu cá nhân thật vào bài 
 
 [Lab01](https://github.com/FIT-DNU/Open-Source-Software-Development/tree/lab1) · [Lab02](https://github.com/FIT-DNU/Open-Source-Software-Development/tree/lab2) · [Lab03](https://github.com/FIT-DNU/Open-Source-Software-Development/tree/lab3) · [Lab04](https://github.com/FIT-DNU/Open-Source-Software-Development/tree/lab4) · [Lab05](https://github.com/FIT-DNU/Open-Source-Software-Development/tree/lab5)
 
-Kết quả yêu cầu của phần mẫu: `TESTS=7 FAILED=0`. `check` chỉ kiểm tra môi trường. `extend` ở bản khởi đầu còn ca chưa đạt vì TODO; không sửa test để bỏ qua lỗi.
+Kết quả yêu cầu: `bash lab.sh test` cho `TESTS=7 FAILED=0`; `bash lab.sh extend` cho `TESTS=8 FAILED=0`. `check` chỉ kiểm tra môi trường; không sửa test để bỏ qua lỗi.
 
 ## Tự kiểm tra luồng trên trình duyệt
 
 1. Trên danh sách, tìm `php`: có 1 sự kiện. Tìm `xyz`: không có kết quả.
 2. Chọn **Đăng ký tham dự**, gửi form trống: thấy lỗi họ tên/email.
 3. Nhập tên và email thử nghiệm hợp lệ, nhấn **Kiểm tra**: thấy `PREVIEW_OK`. Đây chỉ là xem trước, chưa lưu Session hoặc CSDL.
-4. Chọn **Danh sách sự kiện** để quay lại. Bộ lọc nâng cao là phần TODO, sinh viên cần tự hoàn thiện.
+4. Chọn **Danh sách sự kiện** để quay lại. Thử kết hợp từ khóa, loại sự kiện và tùy chọn còn chỗ; các lựa chọn được giữ lại sau khi gửi form.
 
 
 ## Giao diện Material 3 và khu thử riêng
