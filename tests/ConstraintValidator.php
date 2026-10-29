@@ -14,12 +14,12 @@ class ConstraintValidator
      * Xác thực toàn diện một phương án phân công
      *
      * @param array $shifts Danh sách ca trực kèm kỹ năng bắt buộc và giới hạn min/max
-     * @param array $volunteers Danh sách tình nguyện viên kèm kỹ năng và lịch rảnh
+     * @param array $volunteers Danh sách tình nguyện viên kèm kỹ năng
      * @param array $assignments Mảng phân công: shift_id => [user_id, ...]
      * @return array [
      *   'is_valid' => bool,
      *   'violations' => array of [
-     *      'type' => 'skill'|'availability'|'overlap'|'capacity',
+     *      'type' => 'skill'|'overlap'|'capacity',
      *      'shift_id' => int,
      *      'user_id' => int|null,
      *      'message' => string
@@ -115,26 +115,8 @@ class ConstraintValidator
                     }
                 }
 
-                // TC02: Ràng buộc lịch rảnh
-                $isFree = false;
-                foreach ($vol['availability'] ?? [] as $av) {
-                    if ($av['date'] === $shift['date'] &&
-                        $av['time_start'] <= $shift['time_start'] &&
-                        $av['time_end'] >= $shift['time_end']) {
-                        $isFree = true;
-                        break;
-                    }
-                }
-                if (!$isFree) {
-                    $violations[] = [
-                        'type'     => 'availability',
-                        'shift_id' => $shiftId,
-                        'user_id'  => $uid,
-                        'message'  => "TNV {$vol['full_name']} (ID $uid) không rảnh trong khoảng thời gian diễn ra ca '{$shift['name']}' ({$shift['date']} {$shift['time_start']}-{$shift['time_end']})."
-                    ];
-                }
-
-                // Lưu ca để kiểm tra TC03 (xung đột lịch giữa các ca khác nhau)
+                // Registered volunteers are not required to declare full-shift availability.
+                // Save shifts to check for overlapping assignments.
                 $userAssignedShifts[$uid][] = $shift;
             }
         }

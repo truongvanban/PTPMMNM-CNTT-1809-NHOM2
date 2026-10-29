@@ -33,7 +33,7 @@ $diff = $comparison['comparison'] ?? [];
         <?= $comparison['input_summary']['total_volunteers'] ?? 0 ?> tình nguyện viên hợp lệ | 
         <?= $comparison['input_summary']['total_registrations'] ?? 0 ?> lượt đăng ký
     </div>
-    <span class="badge bg-dark">Chạy trên cùng 1 phiên bản snapshot dữ liệu</span>
+    <span class="badge bg-primary-subtle text-primary">Chạy trên cùng 1 phiên bản snapshot dữ liệu</span>
 </div>
 
 <!-- Side-by-Side Comparison Table -->

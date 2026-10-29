@@ -26,15 +26,17 @@ class ActivityController extends Controller
         $search = trim($this->get('search', ''));
         $status = trim($this->get('status', ''));
         $page   = max(1, (int)$this->get('page', 1));
+        $perPage = $this->getPageSize(15);
 
-        $result = $this->activityModel->getAllForAdmin($search, $status, $page, 15);
+        $result = $this->activityModel->getAllForAdmin($search, $status, $page, $perPage);
 
         $this->render('admin.activities.index', [
             'title'      => 'Quản Lý Toàn Bộ Hoạt Động | VolunteerHub',
             'activities' => $result['data'],
             'total'      => $result['total'],
-            'page'       => $page,
+            'page'       => $result['current_page'],
             'lastPage'   => $result['last_page'],
+            'perPage'    => $result['per_page'],
             'search'     => $search,
             'status'     => $status,
         ]);

@@ -34,6 +34,34 @@ class AssignmentModel extends BaseModel
         return $stmt->fetchAll();
     }
 
+    public function getApprovedRegisteredVolunteersForShift(int $shiftId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT u.id, u.full_name, u.email, u.phone, vp.student_id,
+                    (SELECT COUNT(*) FROM assignments asgn
+                     WHERE asgn.user_id = u.id AND asgn.status IN ('assigned','confirmed')) as current_shifts,
+                    GROUP_CONCAT(DISTINCT sk.name ORDER BY sk.name SEPARATOR ', ') as skills
+             FROM registrations reg
+             INNER JOIN users u ON u.id = reg.user_id AND u.status = 'active'
+             INNER JOIN user_roles ur ON ur.user_id = u.id
+             INNER JOIN roles r ON r.id = ur.role_id AND r.name = 'volunteer'
+             LEFT JOIN volunteer_profiles vp ON vp.user_id = u.id
+             LEFT JOIN volunteer_skills vs ON vs.user_id = u.id
+             LEFT JOIN skills sk ON sk.id = vs.skill_id
+             WHERE reg.shift_id = ? AND reg.status = 'approved'
+               AND NOT EXISTS (
+                   SELECT 1 FROM assignments existing
+                   WHERE existing.shift_id = reg.shift_id
+                     AND existing.user_id = reg.user_id
+                     AND existing.status NOT IN ('removed', 'replaced')
+               )
+             GROUP BY u.id
+             ORDER BY u.full_name ASC"
+        );
+        $stmt->execute([$shiftId]);
+        return $stmt->fetchAll();
+    }
+
     public function getByUser(int $userId): array
     {
         $stmt = $this->db->prepare(
@@ -51,6 +79,17 @@ class AssignmentModel extends BaseModel
         );
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
+    }
+
+    public function countActiveByUser(int $userId): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM assignments
+             WHERE user_id = ? AND status NOT IN ('removed', 'replaced')"
+        );
+        $stmt->execute([$userId]);
+        return (int)$stmt->fetchColumn();
     }
 
     public function getRunsByActivity(int $activityId): array
@@ -106,6 +145,31 @@ class AssignmentModel extends BaseModel
 
         try {
             $this->db->beginTransaction();
+
+            $volunteerStmt = $this->db->prepare(
+                "SELECT u.id
+                 FROM users u
+                 INNER JOIN user_roles ur ON ur.user_id = u.id
+                 INNER JOIN roles r ON r.id = ur.role_id AND r.name = 'volunteer'
+                 WHERE u.id = ? AND u.status = 'active'
+                 LIMIT 1"
+            );
+            $volunteerStmt->execute([$userId]);
+            if (!$volunteerStmt->fetchColumn()) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Tài khoản không phải tình nguyện viên đang hoạt động.'];
+            }
+
+            $registrationStmt = $this->db->prepare(
+                "SELECT id FROM registrations
+                 WHERE shift_id = ? AND user_id = ? AND status = 'approved'
+                 LIMIT 1"
+            );
+            $registrationStmt->execute([$shiftId, $userId]);
+            if (!$registrationStmt->fetchColumn()) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Chỉ có thể phân công tình nguyện viên đã đăng ký và được duyệt ca này.'];
+            }
 
             // 1. Khóa hàng và kiểm tra số người hiện tại (Concurrency control)
             $countStmt = $this->db->prepare(

@@ -1,7 +1,7 @@
 <?php
 /**
  * app/Controllers/PublicController.php
- * Trang công khai: trang chủ, danh sách hoạt động, và màn hình kiểm tra Backend không cần đăng nhập
+ * Trang công khai và các endpoint backend chỉ dành cho quản trị viên
  */
 
 declare(strict_types=1);
@@ -75,7 +75,7 @@ class PublicController extends Controller
     }
 
     /**
-     * Màn hình trực quan xem toàn bộ dữ liệu Backend & Thuật toán KHÔNG CẦN ĐĂNG NHẬP
+     * Màn hình kiểm tra dữ liệu backend dành riêng cho quản trị viên
      */
     public function backendInspect(): void
     {
@@ -118,7 +118,7 @@ class PublicController extends Controller
         $algoTest = $service->compareAlgorithms(1);
 
         $this->render('public.backend_inspect', [
-            'title'     => 'Backend Inspector - Kiểm Tra Toàn Bộ Dữ Liệu Backend (Không Cần Đăng Nhập)',
+            'title'     => 'Backend Inspector | VolunteerHub',
             'users'     => $users,
             'shifts'    => $shifts,
             'skills'    => $skills,
@@ -128,7 +128,7 @@ class PublicController extends Controller
     }
 
     /**
-     * API JSON trả về toàn bộ trạng thái Backend cho các ứng dụng client / Postman
+     * API JSON trả về trạng thái backend, chỉ dành cho quản trị viên
      */
     public function apiStatus(): void
     {
@@ -161,7 +161,7 @@ class PublicController extends Controller
     }
 
     /**
-     * API JSON so sánh 2 thuật toán (Greedy Baseline vs Improved Greedy) không cần đăng nhập
+     * API JSON so sánh thuật toán, chỉ dành cho quản trị viên
      */
     public function apiBenchmark(): void
     {
@@ -175,4 +175,3 @@ class PublicController extends Controller
         ]);
     }
 }
-

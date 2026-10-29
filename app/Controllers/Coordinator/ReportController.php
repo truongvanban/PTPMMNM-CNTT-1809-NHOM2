@@ -27,8 +27,28 @@ class ReportController extends Controller
     {
         $coordId = (int)Session::userId();
         $db = Database::getInstance();
+        $perPage = $this->getPageSize();
+        $limitSql = static function (int $page) use ($perPage): string {
+            if ($perPage === 0) {
+                return '';
+            }
+
+            $offset = ($page - 1) * $perPage;
+            return ' LIMIT ' . $perPage . ' OFFSET ' . $offset;
+        };
 
         // 1. Danh sách ca và tình trạng đủ/thiếu người
+        $shiftCountStmt = $db->prepare(
+            "SELECT COUNT(*)
+             FROM shifts s
+             JOIN activities act ON s.activity_id = act.id
+             WHERE act.coordinator_id = ?"
+        );
+        $shiftCountStmt->execute([$coordId]);
+        $shiftTotal = (int)$shiftCountStmt->fetchColumn();
+        $shiftLastPage = $perPage === 0 ? 1 : max(1, (int)ceil($shiftTotal / $perPage));
+        $shiftPage = min(max(1, (int)$this->get('shifts_page', 1)), $shiftLastPage);
+
         $shiftsStmt = $db->prepare(
             "SELECT s.*, act.title as activity_title,
                     (SELECT COUNT(*) FROM assignments asgn WHERE asgn.shift_id = s.id AND asgn.status NOT IN ('removed','replaced')) as assigned_count,
@@ -37,12 +57,30 @@ class ReportController extends Controller
              FROM shifts s
              JOIN activities act ON s.activity_id = act.id
              WHERE act.coordinator_id = ?
-             ORDER BY s.date ASC, s.time_start ASC"
+             ORDER BY s.date ASC, s.time_start ASC" . $limitSql($shiftPage)
         );
         $shiftsStmt->execute([$coordId]);
         $shiftsReport = $shiftsStmt->fetchAll();
 
         // 2. Thống kê khối lượng ca theo từng tình nguyện viên
+        $volunteerCountStmt = $db->prepare(
+            "SELECT COUNT(*)
+             FROM (
+                 SELECT u.id
+                 FROM users u
+                 INNER JOIN user_roles ur ON u.id = ur.user_id AND ur.role_id = 1
+                 JOIN assignments asgn ON asgn.user_id = u.id AND asgn.status NOT IN ('removed','replaced')
+                 JOIN shifts s ON asgn.shift_id = s.id
+                 JOIN activities act ON s.activity_id = act.id
+                 WHERE act.coordinator_id = ?
+                 GROUP BY u.id
+             ) volunteer_totals"
+        );
+        $volunteerCountStmt->execute([$coordId]);
+        $volunteerTotal = (int)$volunteerCountStmt->fetchColumn();
+        $volunteerLastPage = $perPage === 0 ? 1 : max(1, (int)ceil($volunteerTotal / $perPage));
+        $volunteerPage = min(max(1, (int)$this->get('volunteers_page', 1)), $volunteerLastPage);
+
         $volWorkloadStmt = $db->prepare(
             "SELECT u.id, u.full_name, u.email, u.phone, vp.student_id, vp.faculty,
                     COUNT(asgn.id) as total_assigned,
@@ -57,7 +95,7 @@ class ReportController extends Controller
              LEFT JOIN attendance att ON att.assignment_id = asgn.id
              WHERE act.coordinator_id = ?
              GROUP BY u.id
-             ORDER BY total_assigned DESC, u.full_name ASC"
+             ORDER BY total_assigned DESC, u.full_name ASC" . $limitSql($volunteerPage)
         );
         $volWorkloadStmt->execute([$coordId]);
         $volunteerWorkload = $volWorkloadStmt->fetchAll();
@@ -66,6 +104,13 @@ class ReportController extends Controller
             'title'             => 'Báo Cáo & Thống Kê Ca Trực | VolunteerHub',
             'shiftsReport'      => $shiftsReport,
             'volunteerWorkload' => $volunteerWorkload,
+            'shiftTotal' => $shiftTotal,
+            'shiftPage' => $shiftPage,
+            'shiftLastPage' => $shiftLastPage,
+            'volunteerTotal' => $volunteerTotal,
+            'volunteerPage' => $volunteerPage,
+            'volunteerLastPage' => $volunteerLastPage,
+            'perPage' => $perPage,
         ]);
     }
 
@@ -132,6 +177,23 @@ class ReportController extends Controller
         $coordId = (int)Session::userId();
         $db = Database::getInstance();
 
+        $countStmt = $db->prepare(
+            "SELECT COUNT(*)
+             FROM assignment_history ah
+             JOIN assignments asgn ON ah.assignment_id = asgn.id
+             JOIN shifts s ON asgn.shift_id = s.id
+             JOIN activities act ON s.activity_id = act.id
+             WHERE act.coordinator_id = ?"
+        );
+        $countStmt->execute([$coordId]);
+        $total = (int)$countStmt->fetchColumn();
+        $perPage = $this->getPageSize();
+        $lastPage = $perPage === 0 ? 1 : max(1, (int)ceil($total / $perPage));
+        $page = max(1, (int)$this->get('page', 1));
+        $page = min($page, $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage === 0 ? '' : ' LIMIT ' . $perPage . ' OFFSET ' . $offset;
+
         $stmt = $db->prepare(
             "SELECT ah.*, u.full_name as changed_by_name,
                     s.name as shift_name, s.date as shift_date,
@@ -143,7 +205,7 @@ class ReportController extends Controller
              JOIN activities act ON s.activity_id = act.id
              JOIN users asgn_u ON asgn.user_id = asgn_u.id
              WHERE act.coordinator_id = ?
-             ORDER BY ah.created_at DESC"
+             ORDER BY ah.created_at DESC" . $limitSql
         );
         $stmt->execute([$coordId]);
         $history = $stmt->fetchAll();
@@ -151,6 +213,10 @@ class ReportController extends Controller
         $this->render('coordinator.reports.history', [
             'title'   => 'Lịch Sử Thay Đổi Phân Công | VolunteerHub',
             'history' => $history,
+            'total' => $total,
+            'page' => $page,
+            'lastPage' => $lastPage,
+            'perPage' => $perPage,
         ]);
     }
 }

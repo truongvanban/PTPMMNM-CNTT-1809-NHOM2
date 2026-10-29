@@ -21,24 +21,40 @@ class VolunteerController extends Controller
         $db = Database::getInstance();
         $keyword = trim($this->get('keyword', ''));
         $skillId = (int)$this->get('skill_id', 0);
+        $page = max(1, (int)$this->get('page', 1));
+        $perPage = $this->getPageSize(15);
 
         $wheres = ["u.status = 'active'"];
-        $params = [];
+        $whereParams = [];
 
         if ($keyword !== '') {
             $wheres[] = "(u.full_name LIKE ? OR u.email LIKE ? OR vp.student_id LIKE ?)";
-            $params[] = "%$keyword%";
-            $params[] = "%$keyword%";
-            $params[] = "%$keyword%";
+            $whereParams[] = "%$keyword%";
+            $whereParams[] = "%$keyword%";
+            $whereParams[] = "%$keyword%";
         }
 
         $joinSkill = "";
+        $joinParams = [];
         if ($skillId > 0) {
             $joinSkill = "INNER JOIN volunteer_skills vs_filter ON u.id = vs_filter.user_id AND vs_filter.skill_id = ?";
-            $params[] = $skillId;
+            $joinParams[] = $skillId;
         }
 
         $whereSql = "WHERE " . implode(" AND ", $wheres);
+        $fromSql = "FROM users u
+                    INNER JOIN user_roles ur ON u.id = ur.user_id
+                    INNER JOIN roles r ON ur.role_id = r.id AND r.name = 'volunteer'
+                    LEFT JOIN volunteer_profiles vp ON u.id = vp.user_id
+                    $joinSkill
+                    $whereSql";
+        $countStmt = $db->prepare("SELECT COUNT(DISTINCT u.id) $fromSql");
+        $countStmt->execute(array_merge($joinParams, $whereParams));
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min($page, $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
 
         $sql = "SELECT u.id, u.full_name, u.email, u.phone, vp.student_id, vp.faculty, vp.class_name,
                        (SELECT COUNT(*) FROM assignments asgn WHERE asgn.user_id = u.id AND asgn.status IN ('assigned','confirmed')) as total_shifts,
@@ -52,10 +68,10 @@ class VolunteerController extends Controller
                 $joinSkill
                 $whereSql
                 GROUP BY u.id
-                ORDER BY u.full_name ASC";
+                ORDER BY u.full_name ASC $limitSql";
 
         $stmt = $db->prepare($sql);
-        $stmt->execute($params);
+        $stmt->execute(array_merge($joinParams, $whereParams));
         $volunteers = $stmt->fetchAll();
 
         $skillModel = new SkillModel();
@@ -64,6 +80,10 @@ class VolunteerController extends Controller
         $this->render('coordinator.volunteers.index', [
             'title'      => 'Danh Sách Tình Nguyện Viên | VolunteerHub',
             'volunteers' => $volunteers,
+            'total'      => $total,
+            'page'       => $page,
+            'lastPage'   => $lastPage,
+            'perPage'    => $perPage,
             'allSkills'  => $allSkills,
             'keyword'    => $keyword,
             'skillId'    => $skillId,

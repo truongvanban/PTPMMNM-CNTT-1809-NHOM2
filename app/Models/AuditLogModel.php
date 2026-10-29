@@ -58,13 +58,16 @@ class AuditLogModel extends BaseModel
         $countStmt->execute($params);
         $total = (int)$countStmt->fetchColumn();
 
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
         $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
         $sql = "SELECT al.*, u.full_name as user_name, u.email as user_email
                 FROM audit_logs al
                 LEFT JOIN users u ON al.user_id = u.id
                 $whereSql
                 ORDER BY al.created_at DESC
-                LIMIT $perPage OFFSET $offset";
+                $limitSql";
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
 
@@ -73,7 +76,7 @@ class AuditLogModel extends BaseModel
             'total'        => $total,
             'per_page'     => $perPage,
             'current_page' => $page,
-            'last_page'    => (int)ceil($total / $perPage),
+            'last_page'    => $lastPage,
         ];
     }
 }

@@ -61,6 +61,49 @@ class ActivityModel extends BaseModel
         return $stmt->fetchAll();
     }
 
+    public function getByCoordinatorPage(
+        int $coordinatorId,
+        string $status = '',
+        string $keyword = '',
+        int $page = 1,
+        int $perPage = 15
+    ): array {
+        $where = ['coordinator_id = ?'];
+        $params = [$coordinatorId];
+        if ($status !== '') {
+            $where[] = 'status = ?';
+            $params[] = $status;
+        }
+        if ($keyword !== '') {
+            $where[] = '(title LIKE ? OR location LIKE ? OR description LIKE ?)';
+            array_push($params, "%$keyword%", "%$keyword%", "%$keyword%");
+        }
+        $whereSql = 'WHERE ' . implode(' AND ', $where);
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM activities $whereSql");
+        $countStmt->execute($params);
+        $total = (int)$countStmt->fetchColumn();
+
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
+        $stmt = $this->db->prepare(
+            "SELECT a.*,
+                    (SELECT COUNT(*) FROM shifts s WHERE s.activity_id = a.id) as shift_count,
+                    (SELECT COUNT(*) FROM shifts s2 JOIN registrations reg ON s2.id = reg.shift_id
+                     WHERE s2.activity_id = a.id AND reg.status = 'approved') as reg_count
+             FROM activities a $whereSql ORDER BY a.date_start DESC $limitSql"
+        );
+        $stmt->execute($params);
+        return [
+            'data' => $stmt->fetchAll(),
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+        ];
+    }
+
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
@@ -101,16 +144,19 @@ class ActivityModel extends BaseModel
         $countStmt->execute($params);
         $total = (int)$countStmt->fetchColumn();
 
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
         $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
         $stmt = $this->db->prepare(
             "SELECT a.*, u.full_name as coordinator_name,
                     (SELECT COUNT(*) FROM shifts s WHERE s.activity_id = a.id) as shift_count
              FROM activities a JOIN users u ON a.coordinator_id = u.id
-             $where ORDER BY a.created_at DESC LIMIT $perPage OFFSET $offset"
+             $where ORDER BY a.created_at DESC $limitSql"
         );
         $stmt->execute($params);
         return ['data' => $stmt->fetchAll(), 'total' => $total, 'current_page' => $page,
-                'last_page' => (int)ceil($total / $perPage), 'per_page' => $perPage];
+                'last_page' => $lastPage, 'per_page' => $perPage];
     }
 
     /**

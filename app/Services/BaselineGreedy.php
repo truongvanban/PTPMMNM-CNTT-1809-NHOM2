@@ -15,7 +15,7 @@ class BaselineGreedy
      * Chạy thuật toán Baseline Greedy
      *
      * @param array $shifts Danh sách ca trực kèm yêu cầu kỹ năng
-     * @param array $volunteers Danh sách tình nguyện viên kèm kỹ năng và lịch rảnh
+     * @param array $volunteers Danh sách tình nguyện viên kèm kỹ năng
      * @param array $registrations Danh sách đăng ký ca (shift_id => [user_id, ...])
      * @return array Kết quả phân công và chỉ số đo lường
      */
@@ -76,12 +76,7 @@ class BaselineGreedy
                     continue;
                 }
 
-                // Ràng buộc 2: Lịch rảnh trong toàn bộ ca
-                if (!$this->isAvailable($vol['availability'] ?? [], $shift['date'], $shift['time_start'], $shift['time_end'])) {
-                    continue;
-                }
-
-                // Ràng buộc 3: Trùng lịch với ca đã được phân công trước đó của chính user này
+                // Ràng buộc 2: Trùng lịch với ca đã được phân công trước đó của chính user này
                 if ($this->hasOverlapWithAssigned($uid, $shift, $userAssignments[$uid], $sortedShifts)) {
                     continue;
                 }
@@ -144,16 +139,6 @@ class BaselineGreedy
             }
         }
         return true;
-    }
-
-    private function isAvailable(array $userAvailabilities, string $date, string $start, string $end): bool
-    {
-        foreach ($userAvailabilities as $av) {
-            if ($av['date'] === $date && $av['time_start'] <= $start && $av['time_end'] >= $end) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private function hasOverlapWithAssigned(int $uid, array $currentShift, array $assignedShiftIds, array $allShifts): bool

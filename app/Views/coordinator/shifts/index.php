@@ -38,7 +38,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                     <tr>
                         <th>Tên ca & Mô tả</th>
                         <th>Ngày & Giờ</th>
-                        <th>Số lượng TNV</th>
+                        <th>Đăng ký / Phân công</th>
                         <th>Kỹ năng yêu cầu</th>
                         <th>Trạng thái</th>
                         <th class="text-center">Thao tác</th>
@@ -62,10 +62,39 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                     $max = (int)$s['max_volunteers'];
                                     $isShortage = $assigned < $min;
                                 ?>
-                                <span class="badge <?= $isShortage ? 'bg-danger-soft text-danger' : 'bg-success-soft text-success' ?> p-2">
-                                    <?= $assigned ?> / <?= $max ?> người
+                                <?php
+                                    $registered = (int)$s['registered_count'];
+                                    $pending = (int)$s['pending_count'];
+                                ?>
+                                <div class="fw-semibold">
+                                    Đăng ký: <?= $registered ?> / <?= $max ?>
+                                </div>
+                                <div class="small text-muted">
+                                    Chờ duyệt: <?= $pending ?>
+                                </div>
+                                <div class="small mt-1">
+                                    Đã phân công: <?= $assigned ?> / <?= $max ?>
+                                </div>
+                                <?php
+                                    if (!$isShortage) {
+                                        $statusLabel = 'Đủ phân công tối thiểu';
+                                        $statusClass = 'bg-success-soft text-success';
+                                    } elseif ($registered >= $min) {
+                                        $statusLabel = $pending > 0
+                                            ? 'Đủ đăng ký, chờ duyệt / phân công'
+                                            : 'Đủ đăng ký, chờ phân công';
+                                        $statusClass = 'bg-warning-soft text-dark';
+                                    } else {
+                                        $statusLabel = 'Thiếu ' . ($min - $registered) . ' đăng ký';
+                                        $statusClass = 'bg-danger-soft text-danger';
+                                    }
+                                ?>
+                                <span class="badge <?= $statusClass ?> p-2">
+                                    <?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?>
                                 </span>
-                                <div class="small text-muted mt-1">Tối thiểu: <?= $min ?></div>
+                                <div class="small text-muted mt-1">
+                                    Tối thiểu: <?= $min ?> phân công
+                                </div>
                             </td>
                             <td>
                                 <?php if (!empty($s['required_skills'])): ?>
@@ -79,18 +108,28 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                     <span class="badge bg-success">Mở</span>
                                 <?php elseif ($s['status'] === 'full'): ?>
                                     <span class="badge bg-primary">Đã đủ</span>
+                                <?php elseif ($s['status'] === 'closed'): ?>
+                                    <span class="badge bg-secondary">Đã đóng</span>
                                 <?php else: ?>
                                     <span class="badge bg-secondary"><?= htmlspecialchars($s['status']) ?></span>
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
-                                <div class="btn-group btn-group-sm">
-                                    <a href="<?= $baseUrl ?>/coordinator/assignment/manual/<?= $s['id'] ?>" class="btn btn-outline-primary" title="Điều chỉnh phân công">
+                                <div class="shift-actions">
+                                    <a href="<?= $baseUrl ?>/coordinator/assignment/manual/<?= $s['id'] ?>" class="btn btn-sm btn-outline-primary" title="Điều chỉnh phân công">
                                         <i class="bi bi-people-fill"></i> Phân công
                                     </a>
-                                    <a href="<?= $baseUrl ?>/coordinator/shifts/<?= $s['id'] ?>/edit" class="btn btn-outline-secondary" title="Sửa ca">
+                                    <a href="<?= $baseUrl ?>/coordinator/shifts/<?= $s['id'] ?>/edit" class="btn btn-sm btn-outline-secondary" title="Sửa ca">
                                         <i class="bi bi-pencil"></i>
                                     </a>
+                                    <?php if (in_array($s['status'], ['open', 'full'], true)): ?>
+                                        <form action="<?= $baseUrl ?>/coordinator/shifts/<?= $s['id'] ?>/close" method="POST" class="shift-action-form" onsubmit="return confirm('Bạn có chắc muốn đóng ca trực này?');">
+                                            <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Đóng ca trực">
+                                                <i class="bi bi-lock"></i> Đóng ca
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -99,4 +138,17 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
             </table>
         </div>
     <?php endif; ?>
+    <?php
+    $pagination = [
+        'url' => $baseUrl . '/coordinator/activities/' . (int)$activity['id'] . '/shifts',
+        'params' => [],
+        'current_page' => $page,
+        'last_page' => $lastPage,
+        'total' => $total,
+        'per_page' => $perPage,
+        'visible_count' => count($shifts),
+        'item_label' => 'ca trực',
+    ];
+    require VIEW_PATH . '/components/pagination.php';
+    ?>
 </div>

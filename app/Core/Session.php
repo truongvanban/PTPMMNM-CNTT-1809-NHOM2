@@ -21,7 +21,7 @@ class Session
         session_set_cookie_params([
             'lifetime' => $lifetime,
             'path'     => '/',
-            'secure'   => false,    // true khi dùng HTTPS
+            'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
             'httponly' => true,     // Chặn JS đọc cookie
             'samesite' => 'Lax',
         ]);

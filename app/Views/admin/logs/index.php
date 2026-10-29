@@ -15,8 +15,9 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         <div class="col-md-4">
             <input type="text" class="form-control" name="entity" value="<?= htmlspecialchars($entity) ?>" placeholder="Loại thực thể (user, activity...)">
         </div>
+        <input type="hidden" name="per_page" value="<?= $perPage === 0 ? 'all' : (int)$perPage ?>">
         <div class="col-md-3 d-flex gap-2">
-            <button type="submit" class="btn btn-dark btn-sm flex-grow-1">Lọc</button>
+            <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Lọc</button>
             <a href="<?= $baseUrl ?>/admin/logs" class="btn btn-outline-secondary btn-sm">Đặt lại</a>
         </div>
     </form>
@@ -57,18 +58,17 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         </table>
     </div>
 
-    <!-- Pagination -->
-    <?php if ($lastPage > 1): ?>
-        <nav class="mt-4">
-            <ul class="pagination justify-content-center">
-                <?php for ($i = 1; $i <= $lastPage; $i++): ?>
-                    <li class="page-item <?= $i === $page ? 'active' : '' ?>">
-                        <a class="page-link" href="<?= $baseUrl ?>/admin/logs?page=<?= $i ?>&action=<?= urlencode($action) ?>&entity=<?= urlencode($entity) ?>">
-                            <?= $i ?>
-                        </a>
-                    </li>
-                <?php endfor; ?>
-            </ul>
-        </nav>
-    <?php endif; ?>
+    <?php
+    $pagination = [
+        'url' => $baseUrl . '/admin/logs',
+        'params' => ['action' => $action, 'entity' => $entity],
+        'current_page' => $page,
+        'last_page' => $lastPage,
+        'total' => $total,
+        'per_page' => $perPage,
+        'visible_count' => count($logs),
+        'item_label' => 'nhật ký',
+    ];
+    require VIEW_PATH . '/components/pagination.php';
+    ?>
 </div>

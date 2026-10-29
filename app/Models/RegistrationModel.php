@@ -14,49 +14,126 @@ class RegistrationModel extends BaseModel
 
     public function register(int $userId, int $shiftId, string $note = ''): array
     {
-        // 1. Kiểm tra ca tồn tại & trạng thái
-        $shiftModel = new ShiftModel();
-        $shift = $shiftModel->findWithDetails($shiftId);
-        if (!$shift) {
-            return ['success' => false, 'message' => 'Ca trực không tồn tại.'];
-        }
+        try {
+            $this->db->beginTransaction();
 
-        if ($shift['status'] !== 'open') {
-            return ['success' => false, 'message' => 'Ca trực hiện không mở đăng ký.'];
-        }
+            $shiftStmt = $this->db->prepare(
+                "SELECT s.*, a.status as activity_status, a.registration_deadline
+                 FROM shifts s
+                 JOIN activities a ON a.id = s.activity_id
+                 WHERE s.id = ?
+                 FOR UPDATE"
+            );
+            $shiftStmt->execute([$shiftId]);
+            $shift = $shiftStmt->fetch();
+            if (!$shift) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Ca trực không tồn tại.'];
+            }
 
-        // 2. Kiểm tra hạn đăng ký hoạt động
-        if (!empty($shift['registration_deadline'])) {
-            $deadline = strtotime($shift['registration_deadline']);
-            if (time() > $deadline) {
+            if ($shift['status'] !== 'open' || !in_array($shift['activity_status'], ['open', 'ongoing'], true)) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Ca trực hiện không mở đăng ký.'];
+            }
+
+            if (!empty($shift['registration_deadline']) && time() > strtotime($shift['registration_deadline'])) {
+                $this->db->rollBack();
                 return ['success' => false, 'message' => 'Đã hết hạn đăng ký cho hoạt động này.'];
             }
-        }
 
-        // 3. Kiểm tra đã đăng ký chưa
-        $stmt = $this->db->prepare("SELECT * FROM registrations WHERE user_id = ? AND shift_id = ? LIMIT 1");
-        $stmt->execute([$userId, $shiftId]);
-        $existing = $stmt->fetch();
-
-        if ($existing) {
-            if (in_array($existing['status'], ['pending', 'approved'], true)) {
+            $existingStmt = $this->db->prepare(
+                "SELECT * FROM registrations WHERE user_id = ? AND shift_id = ? LIMIT 1"
+            );
+            $existingStmt->execute([$userId, $shiftId]);
+            $existing = $existingStmt->fetch();
+            if ($existing && in_array($existing['status'], ['pending', 'approved'], true)) {
+                $this->db->rollBack();
                 return ['success' => false, 'message' => 'Bạn đã đăng ký ca này rồi.'];
             }
-            // Nếu đã từng rút/hủy -> cho phép đăng ký lại
-            $updateStmt = $this->db->prepare(
-                "UPDATE registrations SET status = 'approved', note = ?, registered_at = NOW(), updated_at = NOW() WHERE id = ?"
+
+            $countStmt = $this->db->prepare(
+                "SELECT COUNT(*) FROM registrations WHERE shift_id = ? AND status IN ('pending', 'approved')"
             );
-            $updateStmt->execute([$note, $existing['id']]);
-            return ['success' => true, 'message' => 'Đăng ký tham gia ca trực thành công!'];
+            $countStmt->execute([$shiftId]);
+            if ((int)$countStmt->fetchColumn() >= (int)$shift['max_volunteers']) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Ca trực đã nhận đủ số lượng đăng ký.'];
+            }
+
+            if ($existing) {
+                $this->db->prepare(
+                    "UPDATE registrations SET status = 'pending', note = ?, registered_at = NOW(), updated_at = NOW() WHERE id = ?"
+                )->execute([$note, $existing['id']]);
+            } else {
+                $this->db->prepare(
+                    "INSERT INTO registrations (user_id, shift_id, status, note, registered_at) VALUES (?, ?, 'pending', ?, NOW())"
+                )->execute([$userId, $shiftId, $note]);
+            }
+
+            $this->db->commit();
+            return ['success' => true, 'message' => 'Đã gửi đăng ký. Vui lòng chờ điều phối viên duyệt.'];
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public function updateStatusForCoordinator(int $registrationId, int $coordinatorId, string $status, bool $isAdmin = false): bool
+    {
+        if (!in_array($status, ['approved', 'rejected'], true)) {
+            return false;
         }
 
-        // 4. Thêm bản ghi đăng ký mới
-        $insertStmt = $this->db->prepare(
-            "INSERT INTO registrations (user_id, shift_id, status, note, registered_at) VALUES (?, ?, 'approved', ?, NOW())"
-        );
-        $insertStmt->execute([$userId, $shiftId, $note]);
+        try {
+            $this->db->beginTransaction();
 
-        return ['success' => true, 'message' => 'Đăng ký tham gia ca trực thành công!'];
+            $registrationStmt = $this->db->prepare(
+                "SELECT r.user_id, s.name AS shift_name, a.title AS activity_title
+                 FROM registrations r
+                 JOIN shifts s ON s.id = r.shift_id
+                 JOIN activities a ON a.id = s.activity_id
+                 WHERE r.id = ? AND (? = 1 OR a.coordinator_id = ?) AND r.status = 'pending'
+                 FOR UPDATE"
+            );
+            $registrationStmt->execute([$registrationId, (int)$isAdmin, $coordinatorId]);
+            $registration = $registrationStmt->fetch();
+            if (!$registration) {
+                $this->db->rollBack();
+                return false;
+            }
+
+            $updateStmt = $this->db->prepare(
+                "UPDATE registrations SET status = ?, updated_at = NOW()
+                 WHERE id = ? AND status = 'pending'"
+            );
+            $updateStmt->execute([$status, $registrationId]);
+            if ($updateStmt->rowCount() !== 1) {
+                $this->db->rollBack();
+                return false;
+            }
+
+            if ($status === 'rejected') {
+                $notificationStmt = $this->db->prepare(
+                    "INSERT INTO notifications (user_id, type, title, message, link)
+                     VALUES (?, 'registration', ?, ?, '/volunteer/my-registrations')"
+                );
+                $notificationStmt->execute([
+                    (int)$registration['user_id'],
+                    'Đơn đăng ký ca trực chưa được chấp nhận',
+                    "Rất tiếc, đơn đăng ký ca '{$registration['shift_name']}' thuộc hoạt động '{$registration['activity_title']}' đã bị từ chối. Bạn có thể xem các ca trực khác đang mở để đăng ký."
+                ]);
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function withdraw(int $userId, int $shiftId): array
@@ -102,7 +179,7 @@ class RegistrationModel extends BaseModel
         return $stmt->fetchAll();
     }
 
-    public function getByCoordinator(int $coordinatorId, string $status = ''): array
+    public function getByCoordinator(int $coordinatorId, string $status = '', int $page = 1, int $perPage = 15): array
     {
         $where = "a.coordinator_id = ?";
         $params = [$coordinatorId];
@@ -111,6 +188,18 @@ class RegistrationModel extends BaseModel
             $params[] = $status;
         }
 
+        $countStmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM registrations r
+             JOIN shifts s ON r.shift_id = s.id
+             JOIN activities a ON s.activity_id = a.id
+             WHERE $where"
+        );
+        $countStmt->execute($params);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
         $stmt = $this->db->prepare(
             "SELECT r.*, u.full_name as volunteer_name, u.email as volunteer_email, u.phone,
                     s.name as shift_name, s.date as shift_date, s.time_start, s.time_end,
@@ -120,10 +209,29 @@ class RegistrationModel extends BaseModel
              JOIN shifts s ON r.shift_id = s.id
              JOIN activities a ON s.activity_id = a.id
              WHERE $where
-             ORDER BY r.registered_at DESC"
+             ORDER BY r.registered_at DESC $limitSql"
         );
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        return [
+            'data' => $stmt->fetchAll(),
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+        ];
+    }
+
+    public function countPendingForCoordinator(int $coordinatorId): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM registrations r
+             JOIN shifts s ON r.shift_id = s.id
+             JOIN activities a ON s.activity_id = a.id
+             WHERE a.coordinator_id = ? AND r.status = 'pending'"
+        );
+        $stmt->execute([$coordinatorId]);
+        return (int)$stmt->fetchColumn();
     }
 
     public function getByUser(int $userId): array

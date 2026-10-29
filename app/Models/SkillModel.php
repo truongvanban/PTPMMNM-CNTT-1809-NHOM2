@@ -18,6 +18,25 @@ class SkillModel extends BaseModel
         return $stmt->fetchAll();
     }
 
+    public function getAdminPage(int $page = 1, int $perPage = 15): array
+    {
+        $total = (int)$this->db->query("SELECT COUNT(*) FROM skills")->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
+        $stmt = $this->db->query(
+            "SELECT * FROM skills ORDER BY category ASC, name ASC $limitSql"
+        );
+        return [
+            'data' => $stmt->fetchAll(),
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+        ];
+    }
+
     public function getByUserId(int $userId): array
     {
         $stmt = $this->db->prepare(

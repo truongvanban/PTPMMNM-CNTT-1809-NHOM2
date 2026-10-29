@@ -25,7 +25,13 @@ class ReplacementController extends Controller
     public function index(): void
     {
         $coordId = (int)Session::userId();
-        $requests = $this->replacementModel->getPendingForCoordinator($coordId);
+        $page = max(1, (int)$this->get('page', 1));
+        $result = $this->replacementModel->getPendingForCoordinatorPage(
+            $coordId,
+            $page,
+            $this->getPageSize(15)
+        );
+        $requests = $result['data'];
 
         // Với mỗi request, tìm các ứng viên thay thế phù hợp
         foreach ($requests as &$req) {
@@ -39,6 +45,10 @@ class ReplacementController extends Controller
         $this->render('coordinator.replacement.index', [
             'title'     => 'Quản Lý Báo Vắng & Thay Người | VolunteerHub',
             'requests'  => $requests,
+            'total'     => $result['total'],
+            'page'      => $result['current_page'],
+            'lastPage'  => $result['last_page'],
+            'perPage'   => $result['per_page'],
             'csrfToken' => Session::generateCsrf(),
             'success'   => Session::getFlash('success'),
             'error'     => Session::getFlash('error'),
@@ -58,7 +68,8 @@ class ReplacementController extends Controller
             $requestId,
             $replacementUserId > 0 ? $replacementUserId : null,
             $coordId,
-            $note
+            $note,
+            Session::hasRole('admin')
         );
 
         if ($res['success']) {
@@ -76,7 +87,7 @@ class ReplacementController extends Controller
         $requestId = (int)$this->post('request_id', 0);
         $note = trim($this->post('coordinator_note', ''));
 
-        $res = $this->replacementModel->rejectReplacement($requestId, $coordId, $note);
+        $res = $this->replacementModel->rejectReplacement($requestId, $coordId, $note, Session::hasRole('admin'));
         if ($res['success']) {
             $this->redirect('/coordinator/replacement', ['success' => $res['message']]);
         } else {

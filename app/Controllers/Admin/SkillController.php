@@ -24,11 +24,16 @@ class SkillController extends Controller
 
     public function index(): void
     {
-        $skills = $this->skillModel->findAll('category ASC, name ASC');
+        $page = max(1, (int)$this->get('page', 1));
+        $result = $this->skillModel->getAdminPage($page, $this->getPageSize(15));
 
         $this->render('admin.skills.index', [
             'title'     => 'Quản Lý Danh Mục Kỹ Năng | VolunteerHub',
-            'skills'    => $skills,
+            'skills'    => $result['data'],
+            'total'     => $result['total'],
+            'page'      => $result['current_page'],
+            'lastPage'  => $result['last_page'],
+            'perPage'   => $result['per_page'],
             'csrfToken' => Session::generateCsrf(),
             'success'   => Session::getFlash('success'),
             'error'     => Session::getFlash('error'),

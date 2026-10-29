@@ -87,13 +87,28 @@ abstract class Controller
         return $_GET[$key] ?? $default;
     }
 
+    protected function getPageSize(int $default = 15): int
+    {
+        $value = $this->get('per_page', '');
+        if ($value === 'all') {
+            return 0;
+        }
+
+        if (!is_string($value) && !is_int($value)) {
+            return $default;
+        }
+
+        $pageSize = filter_var($value, FILTER_VALIDATE_INT);
+        return in_array($pageSize, [5, 10, 15, 20], true) ? $pageSize : $default;
+    }
+
     /**
      * Kiểm tra CSRF token từ POST
      */
     protected function verifyCsrf(): void
     {
         $token = $this->post('_csrf_token', '');
-        if (!Session::verifyCsrf($token)) {
+        if (!is_string($token) || !Session::verifyCsrf($token)) {
             Session::flash('error', 'Phiên làm việc hết hạn hoặc yêu cầu không hợp lệ. Vui lòng thử lại.');
             $this->redirect($_SERVER['HTTP_REFERER'] ?? '/');
         }

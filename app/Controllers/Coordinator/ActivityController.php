@@ -26,12 +26,42 @@ class ActivityController extends Controller
     {
         $coordId = (int)Session::userId();
         $status = $this->get('status', '');
-        $activities = $this->activityModel->getByCoordinator($coordId, $status);
+        $keyword = trim($this->get('keyword', ''));
+        $page = max(1, (int)$this->get('page', 1));
+        $result = $this->activityModel->getByCoordinatorPage(
+            $coordId,
+            $status,
+            $keyword,
+            $page,
+            $this->getPageSize(15)
+        );
+        $allActivities = $this->activityModel->getByCoordinator($coordId);
+        $activityStats = [
+            'total' => count($allActivities),
+            'open' => 0,
+            'draft' => 0,
+            'closed' => 0,
+            'shifts' => 0,
+            'registrations' => 0,
+        ];
+        foreach ($allActivities as $activity) {
+            if (isset($activityStats[$activity['status']])) {
+                $activityStats[$activity['status']]++;
+            }
+            $activityStats['shifts'] += (int)$activity['shift_count'];
+            $activityStats['registrations'] += (int)$activity['reg_count'];
+        }
 
         $this->render('coordinator.activities.index', [
             'title'      => 'Quản Lý Hoạt Động | VolunteerHub',
-            'activities' => $activities,
+            'activities' => $result['data'],
+            'total' => $result['total'],
+            'page' => $result['current_page'],
+            'lastPage' => $result['last_page'],
+            'perPage' => $result['per_page'],
+            'keyword' => $keyword,
             'status'     => $status,
+            'activityStats' => $activityStats,
             'csrfToken'  => Session::generateCsrf(),
             'success'    => Session::getFlash('success'),
             'error'      => Session::getFlash('error'),

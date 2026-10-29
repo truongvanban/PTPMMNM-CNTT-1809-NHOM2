@@ -68,7 +68,7 @@ VolunteerHub/
 ├── tests/
 │   ├── ConstraintValidator.php# Bộ kiểm tra 4 ràng buộc cứng độc lập
 │   └── run_tests.php          # CLI Test Runner cho TC01 -> TC05
-├── .env                       # File cấu hình môi trường
+├── .env.example               # Mẫu cấu hình; không chứa thông tin xác thực
 ├── composer.json
 ├── CONTRIBUTING.md
 ├── LICENSE
@@ -91,7 +91,8 @@ Mở **XAMPP Control Panel** và nhấn **Start** tại 2 dịch vụ:
 - **MySQL** (Cổng 3306)
 
 ### Bước 3: Cấu hình file `.env`
-Đảm bảo file `.env` tại thư mục gốc có nội dung:
+Sao chép `.env.example` thành `.env` trong thư mục gốc và điền thông tin riêng của môi trường. Không đưa `.env` vào Git, gói ZIP/chia sẻ, ảnh chụp hoặc log; chỉ chia sẻ `.env.example`. Nếu thông tin xác thực từng được đưa vào tệp chia sẻ hoặc kho mã, hãy thay/thu hồi thông tin đó trước khi triển khai.
+Không dùng tài khoản demo hoặc dữ liệu seed trên production; hãy xóa/đổi mật khẩu các tài khoản mẫu trước khi đưa hệ thống lên môi trường thật.
 ```ini
 APP_NAME=VolunteerHub
 APP_URL=http://localhost/VolunteerHub/public

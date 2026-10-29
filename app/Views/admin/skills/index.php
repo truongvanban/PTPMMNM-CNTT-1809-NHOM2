@@ -36,7 +36,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
     <!-- Danh Sách Kỹ Năng Hiện Có -->
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm rounded-4 p-4">
-            <h2 class="h4 fw-bold mb-1"><i class="bi bi-tags text-primary me-2"></i>Danh Mục Kỹ Năng Hệ Thống (<?= count($skills) ?>)</h2>
+            <h2 class="h4 fw-bold mb-1"><i class="bi bi-tags text-primary me-2"></i>Danh Mục Kỹ Năng Hệ Thống (<?= (int)$total ?>)</h2>
             <p class="text-muted small mb-3">Tất cả các kỹ năng đang được áp dụng trong VolunteerHub</p>
 
             <div class="table-responsive">
@@ -78,6 +78,19 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                     </tbody>
                 </table>
             </div>
+            <?php
+            $pagination = [
+                'url' => $baseUrl . '/admin/skills',
+                'params' => [],
+                'current_page' => $page,
+                'last_page' => $lastPage,
+                'total' => $total,
+                'per_page' => $perPage,
+                'visible_count' => count($skills),
+                'item_label' => 'kỹ năng',
+            ];
+            require VIEW_PATH . '/components/pagination.php';
+            ?>
         </div>
     </div>
 </div>

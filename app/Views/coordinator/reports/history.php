@@ -54,4 +54,17 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
             </table>
         </div>
     <?php endif; ?>
+    <?php
+    $pagination = [
+        'url' => $baseUrl . '/coordinator/history',
+        'params' => [],
+        'current_page' => $page,
+        'last_page' => $lastPage,
+        'total' => $total,
+        'per_page' => $perPage,
+        'visible_count' => count($history),
+        'item_label' => 'lịch sử',
+    ];
+    require VIEW_PATH . '/components/pagination.php';
+    ?>
 </div>

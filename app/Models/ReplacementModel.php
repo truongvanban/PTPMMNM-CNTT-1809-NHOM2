@@ -87,6 +87,59 @@ class ReplacementModel extends BaseModel
         return $stmt->fetchAll();
     }
 
+    public function countPendingForCoordinator(int $coordinatorId): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM replacement_requests rr
+             JOIN assignments a ON rr.assignment_id = a.id
+             JOIN shifts s ON a.shift_id = s.id
+             JOIN activities act ON s.activity_id = act.id
+             WHERE act.coordinator_id = ? AND rr.status = 'pending'"
+        );
+        $stmt->execute([$coordinatorId]);
+        return (int)$stmt->fetchColumn();
+    }
+
+    public function getPendingForCoordinatorPage(int $coordinatorId, int $page = 1, int $perPage = 15): array
+    {
+        $countStmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM replacement_requests rr
+             JOIN assignments a ON rr.assignment_id = a.id
+             JOIN shifts s ON a.shift_id = s.id
+             JOIN activities act ON s.activity_id = act.id
+             WHERE act.coordinator_id = ? AND rr.status = 'pending'"
+        );
+        $countStmt->execute([$coordinatorId]);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
+        $stmt = $this->db->prepare(
+            "SELECT rr.*, u.full_name as requester_name, u.email as requester_email, u.phone as requester_phone,
+                    s.id as shift_id, s.name as shift_name, s.date as shift_date, s.time_start, s.time_end,
+                    act.title as activity_title, act.id as activity_id,
+                    repl.full_name as replacement_name
+             FROM replacement_requests rr
+             JOIN assignments a ON rr.assignment_id = a.id
+             JOIN shifts s ON a.shift_id = s.id
+             JOIN activities act ON s.activity_id = act.id
+             JOIN users u ON rr.requester_id = u.id
+             LEFT JOIN users repl ON rr.replacement_id = repl.id
+             WHERE act.coordinator_id = ? AND rr.status = 'pending'
+             ORDER BY rr.created_at ASC $limitSql"
+        );
+        $stmt->execute([$coordinatorId]);
+        return [
+            'data' => $stmt->fetchAll(),
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+        ];
+    }
+
     public function getByUser(int $userId): array
     {
         $stmt = $this->db->prepare(
@@ -211,11 +264,14 @@ class ReplacementModel extends BaseModel
     /**
      * Phê duyệt yêu cầu thay người & gán người mới
      */
-    public function approveReplacement(int $requestId, ?int $replacementUserId, int $reviewedBy, string $note = ''): array
+    public function approveReplacement(int $requestId, ?int $replacementUserId, int $reviewedBy, string $note = '', bool $isAdmin = false): array
     {
         $req = $this->findWithDetails($requestId);
         if (!$req || $req['status'] !== 'pending') {
             return ['success' => false, 'message' => 'Yêu cầu không hợp lệ hoặc đã được xử lý.'];
+        }
+        if (!$isAdmin && (int)$req['coordinator_id'] !== $reviewedBy) {
+            return ['success' => false, 'message' => 'Yêu cầu này không thuộc hoạt động của bạn.'];
         }
 
         $shiftId = (int)$req['shift_id'];
@@ -227,8 +283,54 @@ class ReplacementModel extends BaseModel
 
             // Nếu có chỉ định người thay
             if ($replacementUserId !== null && $replacementUserId > 0) {
+                if ($replacementUserId === $requesterId) {
+                    $this->db->rollBack();
+                    return ['success' => false, 'message' => 'Người báo vắng không thể tự thay thế chính mình.'];
+                }
+
+                $volunteerStmt = $this->db->prepare(
+                    "SELECT u.id
+                     FROM users u
+                     INNER JOIN user_roles ur ON ur.user_id = u.id
+                     INNER JOIN roles r ON r.id = ur.role_id AND r.name = 'volunteer'
+                     WHERE u.id = ? AND u.status = 'active'
+                     LIMIT 1"
+                );
+                $volunteerStmt->execute([$replacementUserId]);
+                if (!$volunteerStmt->fetchColumn()) {
+                    $this->db->rollBack();
+                    return ['success' => false, 'message' => 'Tài khoản được chọn không phải tình nguyện viên đang hoạt động.'];
+                }
+
                 // Kiểm tra lại ràng buộc người thay
                 $shiftModel = new ShiftModel();
+                $availabilityStmt = $this->db->prepare(
+                    "SELECT id FROM availability
+                     WHERE user_id = ? AND date = ? AND time_start <= ? AND time_end >= ?
+                     LIMIT 1"
+                );
+                $availabilityStmt->execute([
+                    $replacementUserId,
+                    $req['shift_date'],
+                    $req['time_start'],
+                    $req['time_end'],
+                ]);
+                if (!$availabilityStmt->fetchColumn()) {
+                    $this->db->rollBack();
+                    return ['success' => false, 'message' => 'Người thay thế chưa khai báo rảnh trong toàn bộ ca trực.'];
+                }
+
+                $existingAssignmentStmt = $this->db->prepare(
+                    "SELECT id FROM assignments
+                     WHERE shift_id = ? AND user_id = ? AND status NOT IN ('removed', 'replaced')
+                     LIMIT 1"
+                );
+                $existingAssignmentStmt->execute([$shiftId, $replacementUserId]);
+                if ($existingAssignmentStmt->fetchColumn()) {
+                    $this->db->rollBack();
+                    return ['success' => false, 'message' => 'Người thay thế đã được phân công vào ca này.'];
+                }
+
                 if ($shiftModel->hasTimeConflict($replacementUserId, $shiftId)) {
                     $this->db->rollBack();
                     return ['success' => false, 'message' => 'Người thay thế bị trùng lịch với ca khác.'];
@@ -297,11 +399,14 @@ class ReplacementModel extends BaseModel
         }
     }
 
-    public function rejectReplacement(int $requestId, int $reviewedBy, string $note = ''): array
+    public function rejectReplacement(int $requestId, int $reviewedBy, string $note = '', bool $isAdmin = false): array
     {
         $req = $this->findWithDetails($requestId);
         if (!$req || $req['status'] !== 'pending') {
             return ['success' => false, 'message' => 'Yêu cầu không hợp lệ.'];
+        }
+        if (!$isAdmin && (int)$req['coordinator_id'] !== $reviewedBy) {
+            return ['success' => false, 'message' => 'Yêu cầu này không thuộc hoạt động của bạn.'];
         }
 
         $this->db->prepare(

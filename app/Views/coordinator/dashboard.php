@@ -113,7 +113,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                 </span>
                             </td>
                             <td class="text-danger fw-bold">
-                                -<?= $short ?> người
+                                <?= $short ?> người
                             </td>
                             <td class="text-center">
                                 <a href="<?= $baseUrl ?>/coordinator/assignment/manual/<?= $ss['id'] ?>" class="btn btn-outline-primary btn-sm">

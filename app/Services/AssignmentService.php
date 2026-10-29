@@ -75,32 +75,40 @@ class AssignmentService
             }
         }
         $userIdList = array_keys($allRegisteredUserIds);
+        $userIdList = array_values(array_filter(
+            array_map('intval', $userIdList),
+            static fn(int $id): bool => $id > 0
+        ));
 
         // 4. Lấy thông tin kỹ năng và lịch rảnh của các tình nguyện viên này
         $volunteers = [];
         if (!empty($userIdList)) {
-            $inClause = implode(',', array_map('intval', $userIdList));
+            $placeholders = implode(',', array_fill(0, count($userIdList), '?'));
 
             // Users
-            $users = $this->db->query(
+            $userStmt = $this->db->prepare(
                 "SELECT u.id, u.full_name, u.email, u.phone
                  FROM users u
-                 WHERE u.id IN ($inClause) AND u.status = 'active'"
-            )->fetchAll();
+                 WHERE u.id IN ($placeholders) AND u.status = 'active'"
+            );
+            $userStmt->execute($userIdList);
+            $users = $userStmt->fetchAll();
 
             // Skills
-            $skillsQuery = $this->db->query(
-                "SELECT user_id, skill_id, level FROM volunteer_skills WHERE user_id IN ($inClause)"
+            $skillsQuery = $this->db->prepare(
+                "SELECT user_id, skill_id, level FROM volunteer_skills WHERE user_id IN ($placeholders)"
             );
+            $skillsQuery->execute($userIdList);
             $userSkills = [];
             while ($sk = $skillsQuery->fetch()) {
                 $userSkills[(int)$sk['user_id']][] = (int)$sk['skill_id'];
             }
 
             // Availability
-            $availQuery = $this->db->query(
-                "SELECT user_id, date, time_start, time_end FROM availability WHERE user_id IN ($inClause)"
+            $availQuery = $this->db->prepare(
+                "SELECT user_id, date, time_start, time_end FROM availability WHERE user_id IN ($placeholders)"
             );
+            $availQuery->execute($userIdList);
             $userAvails = [];
             while ($av = $availQuery->fetch()) {
                 $userAvails[(int)$av['user_id']][] = $av;

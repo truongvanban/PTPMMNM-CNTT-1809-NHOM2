@@ -183,8 +183,8 @@ echo "✔ Đã tạo 30 tình nguyện viên\n";
 // 4. ACTIVITIES & SHIFTS
 // =============================================
 
-// Ngày tham chiếu: 2024-03-01
-$baseDate = '2024-03-15';
+// Đặt hoạt động mẫu trong tương lai để luôn còn hạn đăng ký khi seed lại.
+$baseDate = date('Y-m-d', strtotime('+7 days'));
 
 // Hoạt động 1: Ngày hội hiến máu (Bộ A - đủ người)
 $pdo->prepare(
@@ -192,7 +192,7 @@ $pdo->prepare(
      VALUES (?,?,?,?,?,?,?,?)"
 )->execute([
     $coord1Id,
-    'Ngày Hội Hiến Máu Tình Nguyện 2024',
+    'Ngày Hội Hiến Máu Tình Nguyện',
     'Chương trình hiến máu tình nguyện thường niên, hưởng ứng phong trào "Mỗi giọt máu cho đi, một cuộc đời ở lại".',
     'Hội trường A, Trường Đại học XYZ',
     "$baseDate 07:00:00",
@@ -209,7 +209,7 @@ $pdo->prepare(
      VALUES (?,?,?,?,?,?,?,?)"
 )->execute([
     $coord1Id,
-    'Hỗ Trợ Y Tế Cộng Đồng Tháng 3',
+    'Hỗ Trợ Y Tế Cộng Đồng',
     'Chương trình khám sức khỏe miễn phí cho người dân vùng ngoại thành, yêu cầu tình nguyện viên có kỹ năng y tế.',
     'Trạm y tế phường Tân Phú, Quận 7',
     "$date2 08:00:00",

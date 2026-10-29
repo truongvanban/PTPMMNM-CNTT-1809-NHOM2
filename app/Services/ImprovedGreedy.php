@@ -55,9 +55,8 @@ class ImprovedGreedy
                 if (!isset($volunteerMap[$uid])) continue;
                 $vol = $volunteerMap[$uid];
 
-                // Đủ kỹ năng bắt buộc & có rảnh
-                if ($this->hasMandatorySkills($vol['skills'] ?? [], $mandatorySkills)
-                    && $this->isAvailable($vol['availability'] ?? [], $shift['date'], $shift['time_start'], $shift['time_end'])) {
+                // Đếm các ứng viên đã đăng ký và đủ kỹ năng bắt buộc.
+                if ($this->hasMandatorySkills($vol['skills'] ?? [], $mandatorySkills)) {
                     $eligibleCount++;
                 }
             }
@@ -114,11 +113,6 @@ class ImprovedGreedy
                     continue;
                 }
 
-                // Kiểm tra rảnh
-                if (!$this->isAvailable($vol['availability'] ?? [], $shift['date'], $shift['time_start'], $shift['time_end'])) {
-                    continue;
-                }
-
                 // Kiểm tra xung đột lịch với các ca đã được gán trước đó
                 if ($this->hasOverlapWithAssigned($uid, $shift, $userAssignments[$uid], $shifts)) {
                     continue;
@@ -158,7 +152,7 @@ class ImprovedGreedy
                 if (empty($registeredUserIds)) {
                     $reason = 'Không có tình nguyện viên nào đăng ký ca này.';
                 } elseif (empty($validCandidates)) {
-                    $reason = "Đã có " . count($registeredUserIds) . " người đăng ký nhưng không ai thỏa mãn cả kỹ năng bắt buộc, lịch rảnh và không trùng lịch.";
+                    $reason = "Đã có " . count($registeredUserIds) . " người đăng ký nhưng không ai thỏa mãn kỹ năng bắt buộc và điều kiện không trùng lịch.";
                 } else {
                     $reason = "Thiếu $shortage người. Chỉ có $assignedCount ứng viên hợp lệ đáp ứng đủ điều kiện (yêu cầu tối thiểu $minVolunteers).";
                 }
@@ -204,16 +198,6 @@ class ImprovedGreedy
             }
         }
         return true;
-    }
-
-    private function isAvailable(array $userAvailabilities, string $date, string $start, string $end): bool
-    {
-        foreach ($userAvailabilities as $av) {
-            if ($av['date'] === $date && $av['time_start'] <= $start && $av['time_end'] >= $end) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private function hasOverlapWithAssigned(int $uid, array $currentShift, array $assignedShiftIds, array $allShifts): bool

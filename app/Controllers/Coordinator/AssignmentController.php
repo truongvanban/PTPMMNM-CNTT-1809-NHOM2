@@ -88,6 +88,12 @@ class AssignmentController extends Controller
             return;
         }
 
+        $activity = $this->activityModel->findById((int)$runDetails['activity_id']);
+        if (!$activity || ((int)$activity['coordinator_id'] !== (int)Session::userId() && !Session::hasRole('admin'))) {
+            $this->redirect('/403');
+            return;
+        }
+
         $metrics = json_decode($runDetails['result_summary'] ?? '{}', true);
 
         // Lấy thông tin user cho từng ca để hiển thị chi tiết tên TNV
@@ -97,8 +103,13 @@ class AssignmentController extends Controller
             $uids = json_decode($item['assigned_users'] ?? '[]', true) ?: [];
             $item['users_list'] = [];
             if (!empty($uids)) {
-                $inSql = implode(',', array_map('intval', $uids));
-                $uStmt = $db->query("SELECT id, full_name, email, phone FROM users WHERE id IN ($inSql)");
+                $uids = array_values(array_filter(array_map('intval', $uids), static fn(int $id): bool => $id > 0));
+                if (!$uids) {
+                    continue;
+                }
+                $placeholders = implode(',', array_fill(0, count($uids), '?'));
+                $uStmt = $db->prepare("SELECT id, full_name, email, phone FROM users WHERE id IN ($placeholders)");
+                $uStmt->execute($uids);
                 $item['users_list'] = $uStmt->fetchAll();
             }
         }
@@ -119,6 +130,19 @@ class AssignmentController extends Controller
         $this->verifyCsrf();
         $rId = (int)$runId;
         $coordId = (int)Session::userId();
+
+        $runDetails = $this->assignmentModel->getRunDetails($rId);
+        $activity = $runDetails
+            ? $this->activityModel->findById((int)$runDetails['activity_id'])
+            : null;
+        if (!$activity) {
+            $this->redirect('/coordinator/assignment/run', ['error' => 'Không tìm thấy phiên phân công.']);
+            return;
+        }
+        if ((int)$activity['coordinator_id'] !== $coordId && !Session::hasRole('admin')) {
+            $this->redirect('/403');
+            return;
+        }
 
         $res = $this->assignmentService->confirmRun($rId, $coordId);
         if ($res['success']) {
@@ -142,21 +166,7 @@ class AssignmentController extends Controller
         $assignedList = $this->assignmentModel->getByShift($sId);
         $requiredSkills = $this->shiftModel->getRequiredSkills($sId);
 
-        // Lấy danh sách ứng viên có thể thêm vào ca
-        $db = Database::getInstance();
-        $availableVolunteers = $db->query(
-            "SELECT u.id, u.full_name, u.email, u.phone, vp.student_id,
-                    (SELECT COUNT(*) FROM assignments asgn WHERE asgn.user_id = u.id AND asgn.status IN ('assigned','confirmed')) as current_shifts,
-                    GROUP_CONCAT(DISTINCT sk.name SEPARATOR ', ') as skills
-             FROM users u
-             INNER JOIN user_roles ur ON u.id = ur.user_id AND ur.role_id = 1
-             LEFT JOIN volunteer_profiles vp ON u.id = vp.user_id
-             LEFT JOIN volunteer_skills vs ON u.id = vs.user_id
-             LEFT JOIN skills sk ON vs.skill_id = sk.id
-             WHERE u.status = 'active'
-             GROUP BY u.id
-             ORDER BY u.full_name ASC"
-        )->fetchAll();
+        $availableVolunteers = $this->assignmentModel->getApprovedRegisteredVolunteersForShift($sId);
 
         $this->render('coordinator.assignment.manual', [
             'title'               => 'Điều Chỉnh Phân Công: ' . $shift['name'],
@@ -182,6 +192,12 @@ class AssignmentController extends Controller
             return;
         }
 
+        $shift = $this->shiftModel->findWithDetails($shiftId);
+        if (!$shift || ((int)$shift['coordinator_id'] !== $coordId && !Session::hasRole('admin'))) {
+            $this->redirect('/403');
+            return;
+        }
+
         $res = $this->assignmentModel->manualAdd($shiftId, $userId, $coordId);
         if ($res['success']) {
             $this->redirect("/coordinator/assignment/manual/{$shiftId}", ['success' => $res['message']]);
@@ -197,6 +213,13 @@ class AssignmentController extends Controller
         $assignmentId = (int)$this->post('assignment_id', 0);
         $shiftId      = (int)$this->post('shift_id', 0);
         $note         = trim($this->post('note', ''));
+
+        $assignment = $assignmentId > 0 ? $this->assignmentModel->findById($assignmentId) : null;
+        $shift = $assignment ? $this->shiftModel->findWithDetails((int)$assignment['shift_id']) : null;
+        if (!$shift || ((int)$shift['coordinator_id'] !== $coordId && !Session::hasRole('admin'))) {
+            $this->redirect('/403');
+            return;
+        }
 
         $res = $this->assignmentModel->manualRemove($assignmentId, $coordId, $note);
         if ($res['success']) {

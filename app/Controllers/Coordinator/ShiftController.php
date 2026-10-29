@@ -39,12 +39,17 @@ class ShiftController extends Controller
             return;
         }
 
-        $shifts = $this->shiftModel->getByActivity($actId);
+        $page = max(1, (int)$this->get('page', 1));
+        $result = $this->shiftModel->getByActivityPage($actId, $page, $this->getPageSize(15));
 
         $this->render('coordinator.shifts.index', [
             'title'     => 'Quản Lý Ca Trực: ' . $activity['title'],
             'activity'  => $activity,
-            'shifts'    => $shifts,
+            'shifts'    => $result['data'],
+            'total'     => $result['total'],
+            'page'      => $result['current_page'],
+            'lastPage'  => $result['last_page'],
+            'perPage'   => $result['per_page'],
             'csrfToken' => Session::generateCsrf(),
             'success'   => Session::getFlash('success'),
             'error'     => Session::getFlash('error'),
@@ -220,5 +225,31 @@ class ShiftController extends Controller
         $this->shiftModel->setRequiredSkills($shiftId, $skillsData);
 
         $this->redirect("/coordinator/activities/{$shift['activity_id']}/shifts", ['success' => 'Cập nhật ca trực thành công!']);
+    }
+
+    public function close(string $id): void
+    {
+        $this->verifyCsrf();
+        $shiftId = (int)$id;
+        $coordId = (int)Session::userId();
+        $shift = $this->shiftModel->findWithDetails($shiftId);
+
+        if (!$shift || ((int)$shift['coordinator_id'] !== $coordId && !Session::hasRole('admin'))) {
+            $this->redirect('/403');
+            return;
+        }
+
+        if (!$this->shiftModel->close($shiftId)) {
+            $this->redirect(
+                "/coordinator/activities/{$shift['activity_id']}/shifts",
+                ['error' => 'Ca trực đã đóng hoặc không còn ở trạng thái có thể đóng.']
+            );
+            return;
+        }
+
+        $this->redirect(
+            "/coordinator/activities/{$shift['activity_id']}/shifts",
+            ['success' => 'Đã đóng ca trực. Tình nguyện viên không thể đăng ký ca này nữa.']
+        );
     }
 }

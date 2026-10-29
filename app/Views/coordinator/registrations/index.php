@@ -11,10 +11,10 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
 
     <!-- Filter by status -->
     <div class="d-flex gap-2 mb-3">
-        <a href="<?= $baseUrl ?>/coordinator/registrations" class="btn btn-sm <?= empty($status) ? 'btn-dark' : 'btn-outline-secondary' ?>">Tất cả</a>
-        <a href="<?= $baseUrl ?>/coordinator/registrations?status=approved" class="btn btn-sm <?= $status === 'approved' ? 'btn-success' : 'btn-outline-secondary' ?>">Đã duyệt</a>
-        <a href="<?= $baseUrl ?>/coordinator/registrations?status=pending" class="btn btn-sm <?= $status === 'pending' ? 'btn-warning text-dark' : 'btn-outline-secondary' ?>">Chờ duyệt</a>
-        <a href="<?= $baseUrl ?>/coordinator/registrations?status=rejected" class="btn btn-sm <?= $status === 'rejected' ? 'btn-danger' : 'btn-outline-secondary' ?>">Từ chối</a>
+        <a href="<?= $baseUrl ?>/coordinator/registrations?per_page=<?= $perPage === 0 ? 'all' : (int)$perPage ?>" class="btn btn-sm <?= empty($status) ? 'btn-primary' : 'btn-outline-secondary' ?>">Tất cả</a>
+        <a href="<?= $baseUrl ?>/coordinator/registrations?<?= http_build_query(['status' => 'approved', 'per_page' => $perPage === 0 ? 'all' : $perPage]) ?>" class="btn btn-sm <?= $status === 'approved' ? 'btn-success' : 'btn-outline-secondary' ?>">Đã duyệt</a>
+        <a href="<?= $baseUrl ?>/coordinator/registrations?<?= http_build_query(['status' => 'pending', 'per_page' => $perPage === 0 ? 'all' : $perPage]) ?>" class="btn btn-sm <?= $status === 'pending' ? 'btn-warning text-dark' : 'btn-outline-secondary' ?>">Chờ duyệt</a>
+        <a href="<?= $baseUrl ?>/coordinator/registrations?<?= http_build_query(['status' => 'rejected', 'per_page' => $perPage === 0 ? 'all' : $perPage]) ?>" class="btn btn-sm <?= $status === 'rejected' ? 'btn-danger' : 'btn-outline-secondary' ?>">Từ chối</a>
     </div>
 
     <?php if (empty($registrations)): ?>
@@ -93,4 +93,17 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
             </table>
         </div>
     <?php endif; ?>
+    <?php
+    $pagination = [
+        'url' => $baseUrl . '/coordinator/registrations',
+        'params' => ['status' => $status],
+        'current_page' => $page,
+        'last_page' => $lastPage,
+        'total' => $total,
+        'per_page' => $perPage,
+        'visible_count' => count($registrations),
+        'item_label' => 'đơn đăng ký',
+    ];
+    require VIEW_PATH . '/components/pagination.php';
+    ?>
 </div>

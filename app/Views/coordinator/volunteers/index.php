@@ -25,6 +25,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                 <?php endforeach; ?>
             </select>
         </div>
+        <input type="hidden" name="per_page" value="<?= $perPage === 0 ? 'all' : (int)$perPage ?>">
         <div class="col-md-3 d-flex gap-2">
             <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Lọc</button>
             <a href="<?= $baseUrl ?>/coordinator/volunteers" class="btn btn-outline-secondary btn-sm">Đặt lại</a>
@@ -80,4 +81,17 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
             </table>
         </div>
     <?php endif; ?>
+    <?php
+    $pagination = [
+        'url' => $baseUrl . '/coordinator/volunteers',
+        'params' => ['keyword' => $keyword, 'skill_id' => $skillId ?: ''],
+        'current_page' => $page,
+        'last_page' => $lastPage,
+        'total' => $total,
+        'per_page' => $perPage,
+        'visible_count' => count($volunteers),
+        'item_label' => 'tình nguyện viên',
+    ];
+    require VIEW_PATH . '/components/pagination.php';
+    ?>
 </div>

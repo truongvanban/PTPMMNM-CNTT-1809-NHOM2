@@ -14,6 +14,7 @@ class NotificationModel extends BaseModel
 
     public function getByUser(int $userId, int $limit = 20): array
     {
+        $limit = max(1, min(100, $limit));
         $stmt = $this->db->prepare(
             "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT $limit"
         );

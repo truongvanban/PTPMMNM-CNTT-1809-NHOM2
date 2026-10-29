@@ -86,7 +86,7 @@ class TestRunner
     }
 
     /**
-     * TC02: Kiểm tra ràng buộc lịch rảnh
+     * TC02: Tình nguyện viên đã đăng ký không cần khai báo rảnh toàn ca
      */
     private function testTC02_Availability(): void
     {
@@ -94,7 +94,7 @@ class TestRunner
             [
                 'id' => 1, 'name' => 'Ca Chiều', 'date' => '2024-03-20',
                 'time_start' => '13:00:00', 'time_end' => '17:00:00',
-                'min_volunteers' => 1, 'max_volunteers' => 2,
+                'min_volunteers' => 1, 'max_volunteers' => 3,
                 'mandatory_skills' => []
             ]
         ];
@@ -106,13 +106,13 @@ class TestRunner
                 'skills' => [],
                 'availability' => [['date' => '2024-03-20', 'time_start' => '12:00:00', 'time_end' => '18:00:00']]
             ],
-            // User 2: Chỉ rảnh nửa ca (13:00 -> 15:00) -> Không thỏa mãn
+            // User 2: Chỉ khai báo rảnh nửa ca nhưng đã đăng ký
             [
                 'id' => 2, 'full_name' => 'User Rảnh Thiếu Giờ',
                 'skills' => [],
                 'availability' => [['date' => '2024-03-20', 'time_start' => '13:00:00', 'time_end' => '15:00:00']]
             ],
-            // User 3: Không khai báo rảnh ngày này
+            // User 3: Không khai báo rảnh đúng ngày nhưng đã đăng ký
             [
                 'id' => 3, 'full_name' => 'User Không Rảnh',
                 'skills' => [],
@@ -126,14 +126,19 @@ class TestRunner
         $res = $improved->execute($shifts, $volunteers, $registrations);
 
         $assigned = $res['assignments'][1] ?? [];
-        $pass = (in_array(1, $assigned, true) && !in_array(2, $assigned, true) && !in_array(3, $assigned, true));
+        $baseline = new BaselineGreedy();
+        $baselineRes = $baseline->execute($shifts, $volunteers, $registrations);
+        $baselineAssigned = $baselineRes['assignments'][1] ?? [];
+        $pass = (count($assigned) === 3 && count($baselineAssigned) === 3
+            && in_array(1, $assigned, true) && in_array(2, $assigned, true) && in_array(3, $assigned, true)
+            && in_array(1, $baselineAssigned, true) && in_array(2, $baselineAssigned, true) && in_array(3, $baselineAssigned, true));
 
         $val = ConstraintValidator::validate($shifts, $volunteers, $res['assignments']);
 
         $pass = ($pass && $val['is_valid']);
-        $this->record("TC02 - Ràng buộc lịch rảnh toàn ca", $pass,
-            $pass ? "Chỉ User 1 (rảnh trọn vẹn ca) được phân công. User 2 & 3 bị loại trừ."
-                  : "Lỗi: Phân công người không rảnh trong toàn ca!");
+        $this->record("TC02 - Không yêu cầu khai báo rảnh toàn ca với người đã đăng ký", $pass,
+            $pass ? "Hai thuật toán phân công đủ cả 3 TNV đã đăng ký dù chỉ rảnh một phần hoặc chưa khai báo lịch rảnh."
+                  : "Lỗi: TNV đã đăng ký nhưng bị loại do chưa khai báo rảnh toàn ca!");
     }
 
     /**
@@ -310,22 +315,29 @@ class TestRunner
 
             // Bộ A: Hoạt động 1 (Đủ người)
             $compA = $service->compareAlgorithms(1);
-            $valA = ConstraintValidator::validate($compA['improved']['shift_results'], $compA['improved']['assignments'], $compA['improved']['assignments']);
-            $passA = ($compA['improved']['metrics']['violations_count'] === 0 && $compA['improved']['metrics']['sufficient_rate'] == 100);
+            $inputA = $service->prepareInputData(1);
+            $valA = ConstraintValidator::validate($inputA['shifts'], $inputA['volunteers'], $compA['improved']['assignments']);
+            $passA = ($valA['is_valid'] && $compA['improved']['metrics']['violations_count'] === 0
+                && $compA['improved']['metrics']['sufficient_rate'] == 100);
             $this->record("Database Set A - Kịch bản Đủ người (Hoạt động 1)", $passA,
-                "Tỷ lệ ca đủ người: {$compA['improved']['metrics']['sufficient_rate']}% | Vi phạm: {$compA['improved']['metrics']['violations_count']}");
+                "Tỷ lệ ca đủ người: {$compA['improved']['metrics']['sufficient_rate']}% | Validator vi phạm: {$valA['violations_count']}");
 
             // Bộ B: Hoạt động 2 (Thiếu người & Kỹ năng y tế)
             $compB = $service->compareAlgorithms(2);
-            $passB = ($compB['improved']['metrics']['violations_count'] === 0 && $compB['improved']['metrics']['sufficient_rate'] < 100);
+            $inputB = $service->prepareInputData(2);
+            $valB = ConstraintValidator::validate($inputB['shifts'], $inputB['volunteers'], $compB['improved']['assignments']);
+            $passB = ($valB['is_valid'] && $compB['improved']['metrics']['violations_count'] === 0
+                && $compB['improved']['metrics']['sufficient_rate'] < 100);
             $this->record("Database Set B - Kịch bản Thiếu người & Kỹ năng (Hoạt động 2)", $passB,
-                "Hệ thống phát hiện chính xác ca thiếu người. Tỷ lệ: {$compB['improved']['metrics']['sufficient_rate']}%. 0 vi phạm.");
+                "Tỷ lệ ca đủ người: {$compB['improved']['metrics']['sufficient_rate']}% | Validator vi phạm: {$valB['violations_count']}");
 
             // Bộ C: Hoạt động 3 (Trùng lịch sáng/chiều)
             $compC = $service->compareAlgorithms(3);
-            $passC = ($compC['improved']['metrics']['violations_count'] === 0);
+            $inputC = $service->prepareInputData(3);
+            $valC = ConstraintValidator::validate($inputC['shifts'], $inputC['volunteers'], $compC['improved']['assignments']);
+            $passC = ($valC['is_valid'] && $compC['improved']['metrics']['violations_count'] === 0);
             $this->record("Database Set C - Kịch bản Xung đột lịch (Hoạt động 3)", $passC,
-                "Thuật toán xử lý triệt để ca trùng giờ. Vi phạm trùng lặp: {$compC['improved']['metrics']['violations_count']}");
+                "Validator vi phạm: {$valC['violations_count']} | Ca đủ người: {$compC['improved']['metrics']['sufficient_rate']}%");
 
         } catch (Exception $e) {
             $this->record("Database Datasets Test", false, "Lỗi kết nối CSDL: " . $e->getMessage());

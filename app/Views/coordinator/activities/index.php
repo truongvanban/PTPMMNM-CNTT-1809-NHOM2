@@ -1,90 +1,188 @@
 <?php
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
+$status = $status ?? '';
+$activityStats = $activityStats ?? ['total' => count($activities), 'open' => 0, 'draft' => 0, 'closed' => 0, 'shifts' => 0, 'registrations' => 0];
+$statusFilters = [
+    '' => ['label' => 'Tất cả', 'count' => $activityStats['total']],
+    'open' => ['label' => 'Đang mở', 'count' => $activityStats['open']],
+    'draft' => ['label' => 'Bản nháp', 'count' => $activityStats['draft']],
+    'closed' => ['label' => 'Đã đóng', 'count' => $activityStats['closed']],
+];
+$perPageValue = $perPage === 0 ? 'all' : $perPage;
 ?>
-<div class="card border-0 shadow-sm rounded-4 p-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h4 fw-bold mb-1">Quản Lý Hoạt Động Của Bạn</h1>
-            <p class="text-muted small mb-0">Tạo mới, chỉnh sửa thông tin và quản lý các ca trực thuộc từng hoạt động</p>
+<section class="coordinator-activities">
+    <header class="activity-page-header">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div class="d-flex align-items-start gap-3">
+                <div class="activity-page-icon" aria-hidden="true"><i class="bi bi-calendar2-heart"></i></div>
+                <div>
+                    <span class="activity-eyebrow">KHÔNG GIAN ĐIỀU PHỐI</span>
+                    <h1 class="h3 fw-bold mb-1">Hoạt động của tôi</h1>
+                    <p class="text-secondary mb-0">Theo dõi chương trình, ca trực và tình nguyện viên đăng ký.</p>
+                </div>
+            </div>
+            <a href="<?= $baseUrl ?>/coordinator/activities/create" class="btn btn-success px-3 py-2 align-self-md-center">
+                <i class="bi bi-plus-lg me-2"></i>Tạo hoạt động
+            </a>
         </div>
-        <a href="<?= $baseUrl ?>/coordinator/activities/create" class="btn btn-success btn-sm">
-            <i class="bi bi-plus-lg me-1"></i> Tạo hoạt động mới
-        </a>
+    </header>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            <div class="activity-stat-card">
+                <span class="activity-stat-icon text-primary bg-primary-subtle"><i class="bi bi-calendar-event"></i></span>
+                <div><span class="activity-stat-label">Tổng hoạt động</span><strong><?= (int)$activityStats['total'] ?></strong></div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="activity-stat-card">
+                <span class="activity-stat-icon text-success bg-success-subtle"><i class="bi bi-broadcast"></i></span>
+                <div><span class="activity-stat-label">Đang mở</span><strong><?= (int)$activityStats['open'] ?></strong></div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="activity-stat-card">
+                <span class="activity-stat-icon text-info bg-info-subtle"><i class="bi bi-list-task"></i></span>
+                <div><span class="activity-stat-label">Ca trực</span><strong><?= (int)$activityStats['shifts'] ?></strong></div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="activity-stat-card">
+                <span class="activity-stat-icon text-warning bg-warning-subtle"><i class="bi bi-people"></i></span>
+                <div><span class="activity-stat-label">Lượt đăng ký đã duyệt</span><strong><?= (int)$activityStats['registrations'] ?></strong></div>
+            </div>
+        </div>
     </div>
 
-    <!-- Filter by status -->
-    <div class="d-flex gap-2 mb-3">
-        <a href="<?= $baseUrl ?>/coordinator/activities" class="btn btn-sm <?= empty($status) ? 'btn-dark' : 'btn-outline-secondary' ?>">Tất cả</a>
-        <a href="<?= $baseUrl ?>/coordinator/activities?status=open" class="btn btn-sm <?= $status === 'open' ? 'btn-success' : 'btn-outline-secondary' ?>">Đang mở</a>
-        <a href="<?= $baseUrl ?>/coordinator/activities?status=draft" class="btn btn-sm <?= $status === 'draft' ? 'btn-secondary' : 'btn-outline-secondary' ?>">Bản nháp</a>
-        <a href="<?= $baseUrl ?>/coordinator/activities?status=closed" class="btn btn-sm <?= $status === 'closed' ? 'btn-danger' : 'btn-outline-secondary' ?>">Đã đóng</a>
-    </div>
-
-    <?php if (empty($activities)): ?>
-        <div class="p-5 text-center text-muted">
-            <i class="bi bi-calendar-plus fs-1"></i>
-            <h2 class="h5 mt-2">Chưa có hoạt động nào</h2>
-            <p class="small">Bấm vào nút "Tạo hoạt động mới" để bắt đầu tổ chức chương trình tình nguyện.</p>
+    <section class="activity-list-panel" aria-labelledby="activity-list-heading">
+        <div class="activity-list-toolbar">
+            <div>
+                <h2 id="activity-list-heading" class="h5 fw-bold mb-1">Danh sách hoạt động</h2>
+                <p class="text-secondary small mb-0">Chọn một hoạt động để xem ca trực hoặc cập nhật thông tin.</p>
+            </div>
+            <form action="<?= $baseUrl ?>/coordinator/activities" method="GET" class="activity-search-wrap">
+                <label class="visually-hidden" for="activity-search">Tìm hoạt động</label>
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input type="search" class="form-control" id="activity-search" name="keyword"
+                       value="<?= htmlspecialchars($keyword, ENT_QUOTES, 'UTF-8') ?>"
+                       placeholder="Tìm tên hoặc địa điểm..." autocomplete="off">
+                <input type="hidden" name="status" value="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>">
+                <input type="hidden" name="per_page" value="<?= htmlspecialchars((string)$perPageValue, ENT_QUOTES, 'UTF-8') ?>">
+                <button type="submit" class="visually-hidden">Tìm</button>
+            </form>
         </div>
-    <?php else: ?>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle table-custom mb-0">
-                <thead>
-                    <tr>
-                        <th>Tiêu đề hoạt động</th>
-                        <th>Địa điểm</th>
-                        <th>Thời gian</th>
-                        <th>Hạn đăng ký</th>
-                        <th>Số ca trực</th>
-                        <th>Trạng thái</th>
-                        <th class="text-center">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($activities as $act): ?>
+
+        <nav class="activity-filters" aria-label="Lọc theo trạng thái">
+            <?php foreach ($statusFilters as $filterStatus => $filter): ?>
+                <a href="<?= $baseUrl ?>/coordinator/activities?<?= http_build_query(array_filter([
+                    'status' => $filterStatus,
+                    'keyword' => $keyword,
+                    'per_page' => $perPageValue,
+                ], static fn($value): bool => $value !== '')) ?>"
+                   class="activity-filter <?= $status === $filterStatus ? 'active' : '' ?>"
+                   <?= $status === $filterStatus ? 'aria-current="page"' : '' ?>>
+                    <?= htmlspecialchars($filter['label']) ?><span><?= (int)$filter['count'] ?></span>
+                </a>
+            <?php endforeach; ?>
+        </nav>
+
+        <?php if (empty($activities)): ?>
+            <div class="activity-empty-state">
+                <span class="activity-empty-icon"><i class="bi bi-calendar2-plus"></i></span>
+                <?php if ($keyword !== '' || $status !== ''): ?>
+                    <h3 class="h5 fw-bold mt-3">Không tìm thấy hoạt động phù hợp</h3>
+                    <p class="text-secondary mb-3">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái.</p>
+                    <a href="<?= $baseUrl ?>/coordinator/activities" class="btn btn-outline-secondary">Xóa bộ lọc</a>
+                <?php else: ?>
+                    <h3 class="h5 fw-bold mt-3">Chưa có hoạt động nào</h3>
+                    <p class="text-secondary mb-3">Tạo hoạt động đầu tiên để bắt đầu quản lý ca trực và đăng ký tình nguyện viên.</p>
+                    <a href="<?= $baseUrl ?>/coordinator/activities/create" class="btn btn-success">
+                        <i class="bi bi-plus-lg me-2"></i>Tạo hoạt động mới
+                    </a>
+                <?php endif; ?>
+            </div>
+        <?php else: ?>
+            <div class="activity-table-scroll">
+                <table class="table align-middle mb-0 activity-table">
+                    <thead>
                         <tr>
-                            <td>
-                                <div class="fw-bold text-dark"><?= htmlspecialchars($act['title']) ?></div>
-                                <small class="text-muted"><?= htmlspecialchars(mb_strimwidth($act['description'] ?? '', 0, 80, '...')) ?></small>
-                            </td>
-                            <td class="small text-muted"><?= htmlspecialchars($act['location'] ?? 'Chưa rõ') ?></td>
-                            <td class="small">
-                                <div><?= date('d/m/Y', strtotime($act['date_start'])) ?></div>
-                                <small class="text-muted">đến <?= date('d/m/Y', strtotime($act['date_end'])) ?></small>
-                            </td>
-                            <td class="small text-muted">
-                                <?= $act['registration_deadline'] ? date('d/m/Y H:i', strtotime($act['registration_deadline'])) : 'Không' ?>
-                            </td>
-                            <td>
-                                <a href="<?= $baseUrl ?>/coordinator/activities/<?= $act['id'] ?>/shifts" class="badge bg-light text-primary border text-decoration-none p-2">
-                                    <i class="bi bi-grid me-1"></i> <?= (int)$act['shift_count'] ?> ca trực
-                                </a>
-                            </td>
-                            <td>
-                                <?php if ($act['status'] === 'open'): ?>
-                                    <span class="badge bg-success">Đang mở</span>
-                                <?php elseif ($act['status'] === 'draft'): ?>
-                                    <span class="badge bg-secondary">Nháp</span>
-                                <?php elseif ($act['status'] === 'closed'): ?>
-                                    <span class="badge bg-danger">Đã đóng</span>
-                                <?php else: ?>
-                                    <span class="badge bg-info text-dark"><?= htmlspecialchars($act['status']) ?></span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="text-center">
-                                <div class="btn-group btn-group-sm">
-                                    <a href="<?= $baseUrl ?>/coordinator/activities/<?= $act['id'] ?>/shifts" class="btn btn-outline-primary" title="Xem ca">
-                                        <i class="bi bi-list-check"></i>
-                                    </a>
-                                    <a href="<?= $baseUrl ?>/coordinator/activities/<?= $act['id'] ?>/edit" class="btn btn-outline-secondary" title="Sửa">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                </div>
-                            </td>
+                            <th scope="col">Hoạt động</th>
+                            <th scope="col">Địa điểm</th>
+                            <th scope="col">Thời gian</th>
+                            <th scope="col">Hạn đăng ký</th>
+                            <th scope="col">Ca trực</th>
+                            <th scope="col">Trạng thái</th>
+                            <th scope="col" class="text-end">Thao tác</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    <?php endif; ?>
-</div>
+                    </thead>
+                    <tbody id="activity-table-body">
+                        <?php foreach ($activities as $act): ?>
+                            <?php
+                            $startDate = date('d/m/Y', strtotime($act['date_start']));
+                            $endDate = date('d/m/Y', strtotime($act['date_end']));
+                            $statusLabel = ['open' => 'Đang mở', 'draft' => 'Bản nháp', 'closed' => 'Đã đóng', 'ongoing' => 'Đang diễn ra', 'completed' => 'Hoàn thành', 'cancelled' => 'Đã hủy'][$act['status']] ?? $act['status'];
+                            $statusClass = ['open' => 'open', 'draft' => 'draft', 'closed' => 'closed', 'ongoing' => 'ongoing', 'completed' => 'completed', 'cancelled' => 'cancelled'][$act['status']] ?? 'other';
+                            ?>
+                            <tr>
+                                <td data-label="Hoạt động">
+                                    <div class="activity-title-cell">
+                                        <span class="activity-row-icon"><i class="bi bi-calendar-event"></i></span>
+                                        <div>
+                                            <div class="fw-bold text-dark"><?= htmlspecialchars($act['title']) ?></div>
+                                            <small class="text-secondary"><?= htmlspecialchars(mb_strimwidth($act['description'] ?? '', 0, 90, '...')) ?></small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td data-label="Địa điểm"><span class="activity-location"><i class="bi bi-geo-alt me-1"></i><?= htmlspecialchars($act['location'] ?? 'Chưa cập nhật') ?></span></td>
+                                <td data-label="Thời gian">
+                                    <span class="fw-semibold"><?= $startDate ?></span>
+                                    <?php if ($endDate !== $startDate): ?><small class="d-block text-secondary">đến <?= $endDate ?></small><?php endif; ?>
+                                </td>
+                                <td data-label="Hạn đăng ký">
+                                    <?php if ($act['registration_deadline']): ?>
+                                        <span><?= date('d/m/Y', strtotime($act['registration_deadline'])) ?></span>
+                                        <small class="d-block text-secondary"><?= date('H:i', strtotime($act['registration_deadline'])) ?></small>
+                                    <?php else: ?>
+                                        <span class="text-secondary">Không giới hạn</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td data-label="Ca trực">
+                                    <a href="<?= $baseUrl ?>/coordinator/activities/<?= (int)$act['id'] ?>/shifts" class="activity-shift-link">
+                                        <i class="bi bi-list-check me-1"></i><?= (int)$act['shift_count'] ?> ca
+                                    </a>
+                                </td>
+                                <td data-label="Trạng thái"><span class="activity-status <?= $statusClass ?>"><span></span><?= htmlspecialchars($statusLabel) ?></span></td>
+                                <td data-label="Thao tác">
+                                    <div class="d-flex justify-content-md-end gap-2">
+                                        <a href="<?= $baseUrl ?>/coordinator/activities/<?= (int)$act['id'] ?>/shifts" class="btn btn-sm btn-outline-primary activity-action" aria-label="Quản lý ca trực: <?= htmlspecialchars($act['title'], ENT_QUOTES) ?>" title="Quản lý ca trực">
+                                            <i class="bi bi-list-check me-sm-1"></i><span class="d-none d-sm-inline">Ca trực</span>
+                                        </a>
+                                        <a href="<?= $baseUrl ?>/coordinator/activities/<?= (int)$act['id'] ?>/edit" class="btn btn-sm btn-outline-secondary activity-action" aria-label="Chỉnh sửa: <?= htmlspecialchars($act['title'], ENT_QUOTES) ?>" title="Chỉnh sửa hoạt động">
+                                            <i class="bi bi-pencil-square me-sm-1"></i><span class="d-none d-sm-inline">Sửa</span>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php
+            $pagination = [
+                'url' => $baseUrl . '/coordinator/activities',
+                'params' => ['status' => $status, 'keyword' => $keyword],
+                'current_page' => $page,
+                'last_page' => $lastPage,
+                'total' => $total,
+                'per_page' => $perPage,
+                'visible_count' => count($activities),
+                'item_label' => 'hoạt động',
+            ];
+            require VIEW_PATH . '/components/pagination.php';
+            ?>
+            <div class="activity-list-footer">
+                <span><i class="bi bi-info-circle me-1"></i>Chọn <strong>Ca trực</strong> để xem hoặc thêm ca cho hoạt động.</span>
+            </div>
+        <?php endif; ?>
+    </section>
+</section>

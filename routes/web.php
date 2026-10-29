@@ -10,9 +10,9 @@ return [
     ['GET',  '/',                          'PublicController@home',           'public'],
     ['GET',  '/activities',                'PublicController@activities',     'public'],
     ['GET',  '/activities/{id}',           'PublicController@activityDetail', 'public'],
-    ['GET',  '/backend-inspect',          'PublicController@backendInspect', 'public'],
-    ['GET',  '/api/status',                'PublicController@apiStatus',      'public'],
-    ['GET',  '/api/benchmark',             'PublicController@apiBenchmark',   'public'],
+    ['GET',  '/backend-inspect',          'PublicController@backendInspect', 'admin'],
+    ['GET',  '/api/status',                'PublicController@apiStatus',      'admin'],
+    ['GET',  '/api/benchmark',             'PublicController@apiBenchmark',   'admin'],
 
     // ─── Xác thực ──────────────────────────────────────────────
     ['GET',  '/login',                     'AuthController@loginForm',        'guest'],
@@ -60,6 +60,7 @@ return [
     ['POST', '/coordinator/shifts/create',             'Coordinator\ShiftController@create',          'coordinator'],
     ['GET',  '/coordinator/shifts/{id}/edit',          'Coordinator\ShiftController@editForm',        'coordinator'],
     ['POST', '/coordinator/shifts/{id}/edit',          'Coordinator\ShiftController@update',          'coordinator'],
+    ['POST', '/coordinator/shifts/{id}/close',         'Coordinator\ShiftController@close',           'coordinator'],
     ['GET',  '/coordinator/registrations',             'Coordinator\RegistrationController@index',    'coordinator'],
     ['POST', '/coordinator/registrations/approve',     'Coordinator\RegistrationController@approve',  'coordinator'],
     ['POST', '/coordinator/registrations/reject',      'Coordinator\RegistrationController@reject',   'coordinator'],

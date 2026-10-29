@@ -3,9 +3,11 @@
  * Layout cho khu vực Tình nguyện viên (Volunteer)
  */
 use App\Core\Session;
+use App\Models\AssignmentModel;
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
 $currentUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $userName = Session::userName();
+$assignedShiftCount = (new AssignmentModel())->countActiveByUser((int)Session::userId());
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -53,8 +55,15 @@ $userName = Session::userName();
                     <i class="bi bi-compass"></i> Khám phá hoạt động
                     <span class="badge bg-warning text-dark ms-auto" style="font-size: 0.65rem;">Mới</span>
                 </a>
-                <a class="nav-link <?= str_ends_with($currentUri, '/schedule') ? 'active' : '' ?>" href="<?= $baseUrl ?>/volunteer/schedule">
+                <a class="nav-link volunteer-schedule-link <?= str_ends_with($currentUri, '/schedule') ? 'active' : '' ?>" href="<?= $baseUrl ?>/volunteer/schedule">
                     <i class="bi bi-calendar-check"></i> Lịch phân công
+                    <?php if ($assignedShiftCount > 0): ?>
+                        <span class="badge rounded-pill bg-danger volunteer-assignment-count"
+                              aria-label="<?= $assignedShiftCount ?> ca đã được phân công"
+                              title="<?= $assignedShiftCount ?> ca đã được phân công">
+                            <?= $assignedShiftCount > 99 ? '99+' : $assignedShiftCount ?>
+                        </span>
+                    <?php endif; ?>
                 </a>
                 <a class="nav-link <?= str_ends_with($currentUri, '/shifts') ? 'active' : '' ?>" href="<?= $baseUrl ?>/volunteer/shifts">
                     <i class="bi bi-plus-circle"></i> Đăng ký ca trực

@@ -94,6 +94,14 @@ class UserModel extends BaseModel
         return $stmt->execute([$data['full_name'], $data['phone'] ?? '', $id]);
     }
 
+    public function updateAccountDetails(int $id, string $email, string $fullName, string $phone): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE users SET email = ?, full_name = ?, phone = ?, updated_at = NOW() WHERE id = ?"
+        );
+        return $stmt->execute([$email, $fullName, $phone, $id]);
+    }
+
     /**
      * Đổi mật khẩu
      */
@@ -144,6 +152,85 @@ class UserModel extends BaseModel
         if (!in_array($status, $allowed, true)) return false;
         $stmt = $this->db->prepare("UPDATE users SET status = ?, updated_at = NOW() WHERE id = ?");
         return $stmt->execute([$status, $id]);
+    }
+
+    public function changeRole(int $userId, int $roleId, string $action): bool
+    {
+        if (!in_array($action, ['add', 'remove'], true)) {
+            return false;
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            $userStmt = $this->db->prepare("SELECT id FROM users WHERE id = ? FOR UPDATE");
+            $userStmt->execute([$userId]);
+            if (!$userStmt->fetchColumn()) {
+                $this->db->rollBack();
+                return false;
+            }
+
+            $roleStmt = $this->db->prepare("SELECT id, name FROM roles WHERE id = ? LIMIT 1");
+            $roleStmt->execute([$roleId]);
+            $role = $roleStmt->fetch();
+            if (!$role) {
+                $this->db->rollBack();
+                return false;
+            }
+
+            $currentRoleStmt = $this->db->prepare(
+                "SELECT role_id FROM user_roles WHERE user_id = ? AND role_id = ? FOR UPDATE"
+            );
+            $currentRoleStmt->execute([$userId, $roleId]);
+            $hasRole = (bool)$currentRoleStmt->fetchColumn();
+
+            if ($action === 'add') {
+                if ($hasRole) {
+                    $this->db->rollBack();
+                    return false;
+                }
+                $this->db->prepare(
+                    "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)"
+                )->execute([$userId, $roleId]);
+            } else {
+                if (!$hasRole) {
+                    $this->db->rollBack();
+                    return false;
+                }
+
+                $countStmt = $this->db->prepare(
+                    "SELECT COUNT(*) FROM user_roles WHERE user_id = ? FOR UPDATE"
+                );
+                $countStmt->execute([$userId]);
+                if ((int)$countStmt->fetchColumn() <= 1) {
+                    throw new \DomainException('Mỗi tài khoản phải có ít nhất một vai trò.');
+                }
+
+                if ($role['name'] === 'admin') {
+                    $adminCountStmt = $this->db->prepare(
+                        "SELECT COUNT(*) FROM user_roles ur
+                         INNER JOIN roles r ON r.id = ur.role_id
+                         WHERE r.name = 'admin' FOR UPDATE"
+                    );
+                    $adminCountStmt->execute();
+                    if ((int)$adminCountStmt->fetchColumn() <= 1) {
+                        throw new \DomainException('Không thể gỡ vai trò quản trị viên cuối cùng.');
+                    }
+                }
+
+                $this->db->prepare(
+                    "DELETE FROM user_roles WHERE user_id = ? AND role_id = ?"
+                )->execute([$userId, $roleId]);
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -197,7 +284,10 @@ class UserModel extends BaseModel
         $countStmt->execute($params);
         $total = (int)$countStmt->fetchColumn();
 
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
         $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
         $sql = "SELECT u.id, u.email, u.full_name, u.phone, u.status, u.created_at, u.last_login_at,
                        GROUP_CONCAT(DISTINCT r.name ORDER BY r.name SEPARATOR ',') as role_names
                 FROM users u
@@ -207,7 +297,7 @@ class UserModel extends BaseModel
                 $whereSQL
                 GROUP BY u.id
                 ORDER BY $orderBy $direction, u.id DESC
-                LIMIT $perPage OFFSET $offset";
+                $limitSql";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
@@ -217,7 +307,7 @@ class UserModel extends BaseModel
             'total'        => $total,
             'per_page'     => $perPage,
             'current_page' => $page,
-            'last_page'    => (int)ceil($total / $perPage),
+            'last_page'    => $lastPage,
         ];
     }
 

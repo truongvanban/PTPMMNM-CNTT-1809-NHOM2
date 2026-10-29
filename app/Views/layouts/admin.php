@@ -20,7 +20,7 @@ $userName = Session::userName();
 </head>
 <body>
     <!-- Topbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm py-2">
+    <nav class="navbar navbar-expand-lg navbar-dark admin-shell-navbar sticky-top shadow-sm py-2">
         <div class="container-fluid px-3 px-md-4">
             <a class="navbar-brand d-flex align-items-center gap-2 text-white" href="<?= $baseUrl ?>/admin/dashboard">
                 <i class="bi bi-shield-fill-check text-danger fs-4"></i>

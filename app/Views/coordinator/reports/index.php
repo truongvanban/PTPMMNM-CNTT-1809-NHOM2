@@ -35,6 +35,9 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                         </tr>
                     </thead>
                     <tbody>
+                        <?php if (empty($shiftsReport)): ?>
+                            <tr><td colspan="6" class="text-center text-secondary py-4">Chưa có ca trực để báo cáo.</td></tr>
+                        <?php endif; ?>
                         <?php foreach ($shiftsReport as $sr): ?>
                             <?php 
                                 $isShortage = (int)$sr['assigned_count'] < (int)$sr['min_volunteers'];
@@ -72,6 +75,21 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                     </tbody>
                 </table>
             </div>
+            <?php
+            $pagination = [
+                'url' => $baseUrl . '/coordinator/reports',
+                'params' => ['volunteers_page' => $volunteerPage],
+                'page_param' => 'shifts_page',
+                'size_id' => 'shifts-page-size',
+                'current_page' => $shiftPage,
+                'last_page' => $shiftLastPage,
+                'total' => $shiftTotal,
+                'per_page' => $perPage,
+                'visible_count' => count($shiftsReport),
+                'item_label' => 'ca trực',
+            ];
+            require VIEW_PATH . '/components/pagination.php';
+            ?>
         </div>
     </div>
 
@@ -93,6 +111,9 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                         </tr>
                     </thead>
                     <tbody>
+                        <?php if (empty($volunteerWorkload)): ?>
+                            <tr><td colspan="6" class="text-center text-secondary py-4">Chưa có dữ liệu phân công tình nguyện viên.</td></tr>
+                        <?php endif; ?>
                         <?php foreach ($volunteerWorkload as $vw): ?>
                             <tr>
                                 <td>
@@ -112,6 +133,21 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                     </tbody>
                 </table>
             </div>
+            <?php
+            $pagination = [
+                'url' => $baseUrl . '/coordinator/reports',
+                'params' => ['shifts_page' => $shiftPage],
+                'page_param' => 'volunteers_page',
+                'size_id' => 'volunteers-page-size',
+                'current_page' => $volunteerPage,
+                'last_page' => $volunteerLastPage,
+                'total' => $volunteerTotal,
+                'per_page' => $perPage,
+                'visible_count' => count($volunteerWorkload),
+                'item_label' => 'tình nguyện viên',
+            ];
+            require VIEW_PATH . '/components/pagination.php';
+            ?>
         </div>
     </div>
 </div>

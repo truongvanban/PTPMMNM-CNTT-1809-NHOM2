@@ -120,13 +120,21 @@ $maxVol = (int)$shift['max_volunteers'];
     <div class="col-lg-5">
         <div class="card border-0 shadow-sm rounded-4 p-4">
             <h2 class="h5 fw-bold mb-1"><i class="bi bi-person-plus-fill text-success me-2"></i>Thêm Người Vào Ca</h2>
-            <p class="text-muted small mb-3">Hệ thống sẽ kiểm tra lại kỹ năng bắt buộc, xung đột lịch và giới hạn ca.</p>
+            <p class="text-muted small mb-3">
+                Chọn từ <?= count($availableVolunteers) ?> tình nguyện viên đã đăng ký và được duyệt.
+                Hệ thống kiểm tra lại kỹ năng, lịch và giới hạn ca trước khi lưu.
+            </p>
 
             <?php if ($assignedCount >= $maxVol): ?>
                 <div class="alert alert-danger py-2 small mb-0">
                     <i class="bi bi-slash-circle me-1"></i> Ca đã đạt số lượng tối đa (<?= $maxVol ?> người). Không thể thêm người nữa.
                 </div>
             <?php else: ?>
+                <?php if (empty($availableVolunteers)): ?>
+                    <div class="alert alert-info py-2 small mb-0">
+                        Chưa có tình nguyện viên đã đăng ký và được duyệt nào còn có thể phân công vào ca này.
+                    </div>
+                <?php else: ?>
                 <form action="<?= $baseUrl ?>/coordinator/assignment/manual/add" method="POST">
                     <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
                     <input type="hidden" name="shift_id" value="<?= $shift['id'] ?>">
@@ -148,6 +156,7 @@ $maxVol = (int)$shift['max_volunteers'];
                         <i class="bi bi-plus-lg me-1"></i> Thêm vào ca này
                     </button>
                 </form>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>

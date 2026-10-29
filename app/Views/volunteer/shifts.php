@@ -27,14 +27,18 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                         <th>Địa điểm & Ngày</th>
                         <th>Thời gian ca</th>
                         <th>Yêu cầu kỹ năng</th>
-                        <th>Tình trạng</th>
-                        <th class="text-center">Thao tác</th>
+                        <th>Đăng ký & phân công</th>
+                        <th class="text-center">Chi tiết & đăng ký</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($shifts as $s): ?>
-                        <?php 
+                        <?php
                             $isRegistered = !empty($s['my_reg_id']) && in_array($s['my_reg_status'], ['approved', 'pending'], true);
+                            $registeredCount = (int)$s['registered_count'];
+                            $assignedCount = (int)$s['assigned_count'];
+                            $maxVolunteers = (int)$s['max_volunteers'];
+                            $isFull = $registeredCount >= $maxVolunteers;
                         ?>
                         <tr>
                             <td>
@@ -58,13 +62,25 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <small class="text-muted">
-                                    <?= (int)$s['assigned_count'] ?> / <?= (int)$s['max_volunteers'] ?> người
+                                <div class="fw-semibold <?= $isFull ? 'text-danger' : 'text-dark' ?>">
+                                    Đã đăng ký: <?= $registeredCount ?> / <?= $maxVolunteers ?>
+                                </div>
+                                <small class="text-muted d-block">
+                                    Đã phân công: <?= $assignedCount ?> / <?= $maxVolunteers ?>
                                 </small>
                             </td>
                             <td class="text-center">
+                                <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
+                                <button type="button" class="btn btn-outline-primary btn-sm px-3"
+                                        data-bs-toggle="modal" data-bs-target="#shift-detail-<?= (int)$s['id'] ?>">
+                                    <i class="bi bi-info-circle me-1"></i> Chi tiết
+                                </button>
                                 <?php if ($isRegistered): ?>
                                     <span class="badge bg-success-soft text-success"><i class="bi bi-check2 me-1"></i> Đã đăng ký</span>
+                                <?php elseif ($isFull): ?>
+                                    <button type="button" class="btn btn-secondary btn-sm px-3" disabled>
+                                        <i class="bi bi-people-fill me-1"></i> Đã đủ đăng ký
+                                    </button>
                                 <?php else: ?>
                                     <form action="<?= $baseUrl ?>/volunteer/register" method="POST" class="d-inline">
                                         <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
@@ -74,11 +90,82 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                         </button>
                                     </form>
                                 <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
+        <?php foreach ($shifts as $s): ?>
+            <?php
+            $shiftId = (int)$s['id'];
+            $isRegistered = !empty($s['my_reg_id']) && in_array($s['my_reg_status'], ['approved', 'pending'], true);
+            $registeredCount = (int)$s['registered_count'];
+            $maxVolunteers = (int)$s['max_volunteers'];
+            $isFull = $registeredCount >= $maxVolunteers;
+            ?>
+            <div class="modal fade" id="shift-detail-<?= $shiftId ?>" tabindex="-1"
+                 aria-labelledby="shift-detail-label-<?= $shiftId ?>" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header">
+                            <div>
+                                <span class="small text-success fw-semibold"><?= htmlspecialchars($s['activity_title'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <h2 class="modal-title fs-5 fw-bold" id="shift-detail-label-<?= $shiftId ?>">
+                                    <?= htmlspecialchars($s['name'], ENT_QUOTES, 'UTF-8') ?>
+                                </h2>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                        </div>
+                        <div class="modal-body">
+                            <?php if (!empty($s['description'])): ?>
+                                <p class="mb-3"><?= nl2br(htmlspecialchars($s['description'], ENT_QUOTES, 'UTF-8')) ?></p>
+                            <?php endif; ?>
+                            <?php if (!empty($s['activity_description'])): ?>
+                                <div class="mb-3">
+                                    <h3 class="h6 fw-bold">Giới thiệu hoạt động</h3>
+                                    <p class="text-secondary mb-0"><?= nl2br(htmlspecialchars($s['activity_description'], ENT_QUOTES, 'UTF-8')) ?></p>
+                                </div>
+                            <?php endif; ?>
+                            <dl class="row small mb-0">
+                                <dt class="col-5"><i class="bi bi-calendar3 me-1 text-primary"></i>Ngày</dt>
+                                <dd class="col-7"><?= date('d/m/Y', strtotime($s['date'])) ?></dd>
+                                <dt class="col-5"><i class="bi bi-clock me-1 text-primary"></i>Thời gian</dt>
+                                <dd class="col-7"><?= substr($s['time_start'], 0, 5) ?> - <?= substr($s['time_end'], 0, 5) ?></dd>
+                                <dt class="col-5"><i class="bi bi-geo-alt me-1 text-primary"></i>Địa điểm</dt>
+                                <dd class="col-7"><?= htmlspecialchars($s['location'] ?: ($s['activity_location'] ?? 'Chưa rõ'), ENT_QUOTES, 'UTF-8') ?></dd>
+                                <dt class="col-5"><i class="bi bi-people me-1 text-primary"></i>Số lượng</dt>
+                                <dd class="col-7"><?= (int)$s['min_volunteers'] ?>–<?= $maxVolunteers ?> người</dd>
+                                <dt class="col-5"><i class="bi bi-check2-circle me-1 text-primary"></i>Đã đăng ký</dt>
+                                <dd class="col-7"><?= $registeredCount ?> / <?= $maxVolunteers ?> người</dd>
+                                <dt class="col-5"><i class="bi bi-star me-1 text-primary"></i>Kỹ năng</dt>
+                                <dd class="col-7"><?= htmlspecialchars($s['required_skills'] ?: 'Không yêu cầu kỹ năng cụ thể', ENT_QUOTES, 'UTF-8') ?></dd>
+                                <?php if (!empty($s['registration_deadline'])): ?>
+                                    <dt class="col-5"><i class="bi bi-hourglass-split me-1 text-primary"></i>Hạn đăng ký</dt>
+                                    <dd class="col-7"><?= date('H:i d/m/Y', strtotime($s['registration_deadline'])) ?></dd>
+                                <?php endif; ?>
+                            </dl>
+                        </div>
+                        <div class="modal-footer">
+                            <?php if ($isRegistered): ?>
+                                <span class="badge bg-success-soft text-success"><i class="bi bi-check2 me-1"></i>Đã đăng ký</span>
+                            <?php elseif ($isFull): ?>
+                                <button type="button" class="btn btn-secondary" disabled>Đã đủ đăng ký</button>
+                            <?php else: ?>
+                                <form action="<?= $baseUrl ?>/volunteer/register" method="POST" class="d-inline">
+                                    <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                    <input type="hidden" name="shift_id" value="<?= $shiftId ?>">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-plus-lg me-1"></i> Đăng ký ca này
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
     <?php endif; ?>
 </div>

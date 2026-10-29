@@ -4,9 +4,9 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
 <div class="container py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
-            <span class="badge bg-danger mb-2 fs-6"><i class="bi bi-terminal-fill me-1"></i> Public Backend Inspector</span>
+            <span class="badge bg-danger mb-2 fs-6"><i class="bi bi-terminal-fill me-1"></i> Admin Backend Inspector</span>
             <h1 class="h3 fw-bold mb-1">Bảng Kiểm Tra Trực Tiếp Toàn Bộ Dữ Liệu Backend</h1>
-            <p class="text-muted small mb-0">Xem trực tiếp cơ sở dữ liệu MariaDB, kết quả thuật toán và nhật ký hệ thống mà <strong>không cần đăng nhập</strong></p>
+            <p class="text-muted small mb-0">Trang dành riêng cho quản trị viên; dữ liệu hệ thống không hiển thị công khai.</p>
         </div>
         <div class="d-flex gap-2">
             <a href="<?= $baseUrl ?>/api/status" target="_blank" class="btn btn-outline-dark btn-sm">

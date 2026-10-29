@@ -13,10 +13,23 @@ class ShiftModel extends BaseModel
 
     public function getByActivity(int $activityId): array
     {
+        return $this->getByActivityPage($activityId, 1, 0)['data'];
+    }
+
+    public function getByActivityPage(int $activityId, int $page = 1, int $perPage = 15): array
+    {
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM shifts WHERE activity_id = ?");
+        $countStmt->execute([$activityId]);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
         $stmt = $this->db->prepare(
             "SELECT s.*,
                     (SELECT COUNT(*) FROM assignments a WHERE a.shift_id = s.id AND a.status NOT IN ('removed','replaced')) as assigned_count,
-                    (SELECT COUNT(*) FROM registrations r WHERE r.shift_id = s.id AND r.status = 'approved') as registered_count,
+                    (SELECT COUNT(*) FROM registrations r WHERE r.shift_id = s.id AND r.status IN ('pending','approved')) as registered_count,
+                    (SELECT COUNT(*) FROM registrations r WHERE r.shift_id = s.id AND r.status = 'pending') as pending_count,
                     GROUP_CONCAT(DISTINCT sk.name ORDER BY sk.name SEPARATOR ', ') as required_skills,
                     GROUP_CONCAT(DISTINCT srs.skill_id ORDER BY srs.skill_id) as required_skill_ids,
                     GROUP_CONCAT(DISTINCT srs.is_mandatory ORDER BY srs.skill_id) as skill_mandatory_flags
@@ -25,16 +38,23 @@ class ShiftModel extends BaseModel
              LEFT JOIN skills sk ON srs.skill_id = sk.id
              WHERE s.activity_id = ?
              GROUP BY s.id
-             ORDER BY s.date ASC, s.time_start ASC"
+             ORDER BY s.date ASC, s.time_start ASC $limitSql"
         );
         $stmt->execute([$activityId]);
-        return $stmt->fetchAll();
+        return [
+            'data' => $stmt->fetchAll(),
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+        ];
     }
 
     public function findWithDetails(int $id): ?array
     {
         $stmt = $this->db->prepare(
             "SELECT s.*, a.title as activity_title, a.coordinator_id, a.status as activity_status,
+                    a.registration_deadline,
                     (SELECT COUNT(*) FROM assignments a2 WHERE a2.shift_id = s.id AND a2.status NOT IN ('removed','replaced')) as assigned_count,
                     GROUP_CONCAT(DISTINCT srs.skill_id ORDER BY srs.skill_id) as required_skill_ids,
                     GROUP_CONCAT(DISTINCT srs.is_mandatory ORDER BY srs.skill_id) as skill_mandatory_flags
@@ -81,6 +101,16 @@ class ShiftModel extends BaseModel
         return $stmt->execute($data);
     }
 
+    public function close(int $id): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE shifts SET status = 'closed', updated_at = NOW()
+             WHERE id = ? AND status IN ('open', 'full')"
+        );
+        $stmt->execute([$id]);
+        return $stmt->rowCount() > 0;
+    }
+
     public function setRequiredSkills(int $shiftId, array $skills): void
     {
         $this->db->prepare("DELETE FROM shift_required_skills WHERE shift_id = ?")->execute([$shiftId]);
@@ -99,10 +129,12 @@ class ShiftModel extends BaseModel
     public function getAvailableForVolunteer(int $userId): array
     {
         $stmt = $this->db->prepare(
-            "SELECT s.*, a.title as activity_title, a.location as activity_location,
+            "SELECT s.*, a.title as activity_title, a.description as activity_description,
+                    a.location as activity_location,
                     a.registration_deadline,
                     (SELECT COUNT(*) FROM assignments asgn WHERE asgn.shift_id = s.id AND asgn.status NOT IN ('removed','replaced')) as assigned_count,
-                    (SELECT COUNT(*) FROM registrations r2 WHERE r2.shift_id = s.id AND r2.status = 'approved') as registered_count,
+                    (SELECT COUNT(*) FROM registrations r2 WHERE r2.shift_id = s.id AND r2.status IN ('pending','approved')) as registered_count,
+                    (SELECT COUNT(*) FROM registrations r2 WHERE r2.shift_id = s.id AND r2.status = 'pending') as pending_count,
                     (SELECT id FROM registrations r3 WHERE r3.shift_id = s.id AND r3.user_id = ? LIMIT 1) as my_reg_id,
                     (SELECT status FROM registrations r4 WHERE r4.shift_id = s.id AND r4.user_id = ? LIMIT 1) as my_reg_status,
                     GROUP_CONCAT(DISTINCT sk.name ORDER BY sk.name SEPARATOR ', ') as required_skills
