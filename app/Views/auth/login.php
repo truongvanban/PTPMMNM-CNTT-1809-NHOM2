@@ -1,60 +1,39 @@
 <?php
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
 ?>
-<h2 class="h4 fw-bold text-center mb-4 text-dark">Đăng Nhập Tài Khoản</h2>
+<div class="auth-heading">
+    <span class="auth-heading-kicker">Chào mừng trở lại</span>
+    <h2>Đăng nhập</h2>
+    <p>Đăng nhập để tiếp tục hành trình tình nguyện của bạn.</p>
+</div>
 
-<form action="<?= $baseUrl ?>/login" method="POST">
+<form action="<?= $baseUrl ?>/login" method="POST" class="auth-form">
     <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
 
-    <div class="mb-3">
-        <label for="email" class="form-label fw-semibold">Địa chỉ Email</label>
-        <div class="input-group">
-            <span class="input-group-text bg-light"><i class="bi bi-envelope"></i></span>
-            <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com" required autofocus>
+    <div class="auth-field">
+        <label for="email" class="form-label">Địa chỉ email</label>
+        <div class="auth-input-wrap">
+            <i class="bi bi-envelope auth-input-icon"></i>
+            <input type="email" class="form-control" id="email" name="email" placeholder="ten@email.com" autocomplete="email" required autofocus>
         </div>
     </div>
 
-    <div class="mb-4">
-        <label for="password" class="form-label fw-semibold">Mật khẩu</label>
-        <div class="input-group">
-            <span class="input-group-text bg-light"><i class="bi bi-lock"></i></span>
-            <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
+    <div class="auth-field">
+        <label for="password" class="form-label">Mật khẩu</label>
+        <div class="auth-input-wrap">
+            <i class="bi bi-lock auth-input-icon"></i>
+            <input type="password" class="form-control" id="password" name="password" placeholder="Nhập mật khẩu" autocomplete="current-password" required>
         </div>
     </div>
 
-    <button type="submit" class="btn btn-success w-100 py-2 fw-semibold">
-        <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+    <button type="submit" class="btn auth-submit w-100">
+        Đăng nhập <i class="bi bi-arrow-right ms-2"></i>
     </button>
 </form>
 
-<!-- Quick Fill Demo Buttons -->
-<div class="mt-4 pt-3 border-top">
-    <div class="small fw-bold text-muted mb-2 text-center text-uppercase">Tài khoản demo nhanh:</div>
-    <div class="d-flex flex-wrap gap-2 justify-content-center">
-        <button type="button" class="btn btn-sm btn-outline-danger" onclick="fillLogin('admin@volunteerhub.vn', 'Admin@2024')">
-            Admin
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-primary" onclick="fillLogin('coord1@volunteerhub.vn', 'Coord@123')">
-            Điều phối viên
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-success" onclick="fillLogin('tnv1@volunteerhub.vn', 'Demo@123')">
-            Tình nguyện viên
-        </button>
-    </div>
-</div>
-
-<div class="text-center mt-4">
-    <p class="text-muted small mb-0">
-        Chưa có tài khoản? <a href="<?= $baseUrl ?>/register" class="text-success fw-bold text-decoration-none">Đăng ký ngay</a>
+<div class="auth-switch">
+    <p>Chưa có tài khoản? <a href="<?= $baseUrl ?>/register">Đăng ký ngay</a></p>
+    <p class="auth-switch-secondary">
+        <i class="bi bi-compass me-1"></i> Bạn có thể <a href="<?= $baseUrl ?>/activities">khám phá hoạt động</a> trước.
     </p>
-    <a href="<?= $baseUrl ?>/" class="text-secondary small d-inline-block mt-2 text-decoration-none">
-        <i class="bi bi-arrow-left"></i> Về trang chủ
-    </a>
 </div>
-
-<script>
-function fillLogin(email, password) {
-    document.getElementById('email').value = email;
-    document.getElementById('password').value = password;
-}
-</script>

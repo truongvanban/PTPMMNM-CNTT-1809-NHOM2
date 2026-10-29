@@ -101,33 +101,3 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         </div>
     <?php endif; ?>
 </div>
-
-<!-- Demo Accounts Guide Card -->
-<div class="container mb-5">
-    <div class="card bg-light border-0 rounded-4 p-4">
-        <h3 class="h5 fw-bold text-success mb-3"><i class="bi bi-key-fill me-2"></i>Tài Khoản Thử Nghiệm (Demo Accounts)</h3>
-        <div class="row g-3 small">
-            <div class="col-md-4">
-                <div class="p-3 bg-white rounded border">
-                    <strong class="text-danger"><i class="bi bi-shield-lock me-1"></i> Quản Trị Viên (Admin)</strong>
-                    <div class="text-muted mt-1">Email: <code>admin@volunteerhub.vn</code></div>
-                    <div class="text-muted">Mật khẩu: <code>Admin@2024</code></div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-3 bg-white rounded border">
-                    <strong class="text-primary"><i class="bi bi-kanban me-1"></i> Điều Phối Viên (Coordinator)</strong>
-                    <div class="text-muted mt-1">Email: <code>coord1@volunteerhub.vn</code></div>
-                    <div class="text-muted">Mật khẩu: <code>Coord@123</code></div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-3 bg-white rounded border">
-                    <strong class="text-success"><i class="bi bi-person me-1"></i> Tình Nguyện Viên (Volunteer)</strong>
-                    <div class="text-muted mt-1">Email: <code>tnv1@volunteerhub.vn</code> (đến tnv30)</div>
-                    <div class="text-muted">Mật khẩu: <code>Demo@123</code></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
