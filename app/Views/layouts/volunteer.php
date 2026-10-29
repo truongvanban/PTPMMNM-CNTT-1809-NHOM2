@@ -21,7 +21,7 @@ $assignedShiftCount = (new AssignmentModel())->countActiveByUser((int)Session::u
 </head>
 <body>
     <!-- Topbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-success sticky-top shadow-sm py-2">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success volunteer-shell-navbar sticky-top shadow-sm py-2">
         <div class="container-fluid px-3 px-md-4">
             <a class="navbar-brand d-flex align-items-center gap-2 text-white" href="<?= $baseUrl ?>/volunteer/dashboard">
                 <i class="bi bi-heart-pulse-fill fs-4 text-warning"></i>

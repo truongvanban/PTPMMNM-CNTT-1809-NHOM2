@@ -44,6 +44,10 @@ body {
     background: linear-gradient(110deg, #0f665e, #16877b);
 }
 
+.volunteer-shell-navbar .navbar-brand {
+    color: #ffffff !important;
+}
+
 /* Dashboard Layout với Sidebar */
 .dashboard-wrapper {
     display: flex;
