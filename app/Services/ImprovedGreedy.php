@@ -3,7 +3,7 @@
  * app/Services/ImprovedGreedy.php
  * Thuật toán phân công cải tiến (Improved Greedy - Most Constrained First & Workload Balancing)
  * 1. Sắp xếp ca khó trước (ít ứng viên hợp lệ, nhiều kỹ năng bắt buộc, giờ bắt đầu sớm)
- * 2. Ưu tiên ứng viên có số ca ít hơn để cân bằng khối lượng công việc
+ * 2. Ưu tiên ứng viên có tổng thời lượng ca ít hơn để cân bằng khối lượng công việc
  * 3. Thứ tự ổn định để đảm bảo kết quả tái tạo được (deterministic)
  */
 
@@ -28,13 +28,16 @@ class ImprovedGreedy
         // Khởi tạo
         $assignments = [];     // shift_id => [user_id, ...]
         $userAssignments = []; // user_id => [shift_id, ...]
+        $userWorkloadMinutes = []; // user_id => assigned minutes
         $shiftResults = [];
 
         foreach ($shifts as $s) {
             $assignments[(int)$s['id']] = [];
         }
         foreach ($volunteers as $v) {
-            $userAssignments[(int)$v['id']] = [];
+            $userId = (int)$v['id'];
+            $userAssignments[$userId] = [];
+            $userWorkloadMinutes[$userId] = (int)($v['workload_minutes'] ?? 0);
         }
 
         $volunteerMap = [];
@@ -122,13 +125,13 @@ class ImprovedGreedy
             }
 
             // Bước 5 & 6: Sắp xếp ứng viên hợp lệ
-            // - Ưu tiên người có ít ca đã phân công nhất (cân bằng tải)
+            // - Ưu tiên người có tổng thời lượng ca thấp nhất (cân bằng tải)
             // - Nếu bằng nhau: theo user_id tăng dần để đảm bảo kết quả tái tạo được
-            usort($validCandidates, function($uA, $uB) use ($userAssignments) {
-                $countA = count($userAssignments[$uA] ?? []);
-                $countB = count($userAssignments[$uB] ?? []);
-                if ($countA !== $countB) {
-                    return $countA <=> $countB; // ít ca hơn đứng trước
+            usort($validCandidates, function($uA, $uB) use ($userWorkloadMinutes) {
+                $workloadA = $userWorkloadMinutes[$uA] ?? 0;
+                $workloadB = $userWorkloadMinutes[$uB] ?? 0;
+                if ($workloadA !== $workloadB) {
+                    return $workloadA <=> $workloadB;
                 }
                 return $uA <=> $uB; // thứ tự ổn định
             });
@@ -140,6 +143,7 @@ class ImprovedGreedy
                 }
                 $assignments[$sid][] = $candidateId;
                 $userAssignments[$candidateId][] = $sid;
+                $userWorkloadMinutes[$candidateId] += $this->getShiftDurationMinutes($shift);
             }
 
             // Bước 8: Ghi nhận trạng thái và nguyên nhân nếu thiếu
@@ -198,6 +202,13 @@ class ImprovedGreedy
             }
         }
         return true;
+    }
+
+    private function getShiftDurationMinutes(array $shift): int
+    {
+        $start = strtotime('1970-01-01 ' . $shift['time_start']);
+        $end = strtotime('1970-01-01 ' . $shift['time_end']);
+        return $start !== false && $end !== false ? max(0, (int)(($end - $start) / 60)) : 0;
     }
 
     private function hasOverlapWithAssigned(int $uid, array $currentShift, array $assignedShiftIds, array $allShifts): bool

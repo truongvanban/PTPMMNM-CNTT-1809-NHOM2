@@ -13,6 +13,9 @@ $userInitials = mb_strtoupper(mb_substr($user['full_name'] ?? 'T', 0, 1));
         </div>
         <div>
             <h1 class="h4 fw-bold mb-1 text-dark"><?= htmlspecialchars($user['full_name']) ?></h1>
+            <a class="badge text-bg-success text-decoration-none" href="<?= rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/') ?>/volunteer/points">
+                <?= number_format($pointsSummary['points']) ?> điểm · <?= htmlspecialchars($pointsSummary['tier_label']) ?>
+            </a>
             <p class="text-muted small mb-0">
                 <i class="bi bi-envelope me-1"></i><?= htmlspecialchars($user['email']) ?> &bull; 
                 <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">Tình nguyện viên</span>

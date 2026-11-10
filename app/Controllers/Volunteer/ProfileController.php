@@ -11,6 +11,7 @@ namespace App\Controllers\Volunteer;
 use App\Core\Controller;
 use App\Core\Session;
 use App\Models\Database;
+use App\Models\PointsModel;
 use App\Models\SkillModel;
 use App\Models\UserModel;
 
@@ -40,6 +41,7 @@ class ProfileController extends Controller
             'title'     => 'Hồ Sơ Cá Nhân | VolunteerHub',
             'user'      => $user,
             'profile'   => $profile,
+            'pointsSummary' => (new PointsModel())->getSummary($userId),
             'csrfToken' => Session::generateCsrf(),
             'success'   => Session::getFlash('success'),
             'error'     => Session::getFlash('error'),

@@ -52,7 +52,7 @@ class ReportController extends Controller
         $shiftsStmt = $db->prepare(
             "SELECT s.*, act.title as activity_title,
                     (SELECT COUNT(*) FROM assignments asgn WHERE asgn.shift_id = s.id AND asgn.status NOT IN ('removed','replaced')) as assigned_count,
-                    (SELECT COUNT(*) FROM attendance att WHERE att.shift_id = s.id AND att.status = 'confirmed') as confirmed_count,
+                    (SELECT COUNT(*) FROM attendance att WHERE att.shift_id = s.id AND att.status IN ('confirmed','completed')) as confirmed_count,
                     (SELECT COUNT(*) FROM attendance att2 WHERE att2.shift_id = s.id AND att2.status = 'absent') as absent_count
              FROM shifts s
              JOIN activities act ON s.activity_id = act.id
@@ -84,7 +84,7 @@ class ReportController extends Controller
         $volWorkloadStmt = $db->prepare(
             "SELECT u.id, u.full_name, u.email, u.phone, vp.student_id, vp.faculty,
                     COUNT(asgn.id) as total_assigned,
-                    SUM(CASE WHEN att.status = 'confirmed' THEN 1 ELSE 0 END) as total_confirmed,
+                    SUM(CASE WHEN att.status IN ('confirmed','completed') THEN 1 ELSE 0 END) as total_confirmed,
                     SUM(CASE WHEN att.status = 'absent' THEN 1 ELSE 0 END) as total_absent
              FROM users u
              INNER JOIN user_roles ur ON u.id = ur.user_id AND ur.role_id = 1

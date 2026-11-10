@@ -1,7 +1,7 @@
 <?php
 /**
  * tests/run_tests.php
- * Bộ kiểm thử tự động cho các ràng buộc phân công và dữ liệu mẫu (TC01 -> TC06)
+ * Bộ kiểm thử tự động cho các ràng buộc phân công và dữ liệu mẫu (TC01 -> TC07)
  * Chạy bằng lệnh: php tests/run_tests.php
  */
 
@@ -16,7 +16,7 @@ require_once __DIR__ . '/ConstraintValidator.php';
 use App\Services\BaselineGreedy;
 use App\Services\ImprovedGreedy;
 use App\Services\AssignmentService;
-use App\Models\ReplacementModel;
+use App\Models\PointsModel;
 use Tests\ConstraintValidator;
 
 class TestRunner
@@ -30,11 +30,13 @@ class TestRunner
         $this->printHeader("BẮT ĐẦU KIỂM THỬ TỰ ĐỘNG VOLUNTEERHUB");
 
         $this->testTC01_MandatorySkills();
-        $this->testTC02_Availability();
+        $this->testTC02_RegistrationEligibility();
         $this->testTC03_NoOverlap();
         $this->testTC04_CapacityLimit();
         $this->testTC05_AlgorithmComparison();
-        $this->testTC06_ReplacementAvailability();
+        $this->testTC06_ReplacementEligibility();
+        $this->testTC07_WorkloadByDuration();
+        $this->testTC08_PointsRules();
         $this->testDatabaseDatasets();
 
         $this->printSummary();
@@ -55,17 +57,15 @@ class TestRunner
         ];
 
         $volunteers = [
-            // User 1: ĐỦ kỹ năng 101, rảnh cả ngày
+            // User 1: ĐỦ kỹ năng 101
             [
                 'id' => 1, 'full_name' => 'Nguyễn Văn Có Kỹ Năng',
-                'skills' => [101, 102],
-                'availability' => [['date' => '2024-03-20', 'time_start' => '07:00:00', 'time_end' => '18:00:00']]
+                'skills' => [101, 102]
             ],
-            // User 2: THIẾU kỹ năng 101, rảnh cả ngày
+            // User 2: THIẾU kỹ năng 101
             [
                 'id' => 2, 'full_name' => 'Trần Văn Thiếu Kỹ Năng',
-                'skills' => [102], // chỉ có 102
-                'availability' => [['date' => '2024-03-20', 'time_start' => '07:00:00', 'time_end' => '18:00:00']]
+                'skills' => [102] // chỉ có 102
             ]
         ];
 
@@ -88,9 +88,9 @@ class TestRunner
     }
 
     /**
-     * TC02: Tình nguyện viên đã đăng ký không cần khai báo rảnh toàn ca
+     * TC02: Tình nguyện viên đã đăng ký được xét theo kỹ năng và xung đột ca
      */
-    private function testTC02_Availability(): void
+    private function testTC02_RegistrationEligibility(): void
     {
         $shifts = [
             [
@@ -102,23 +102,17 @@ class TestRunner
         ];
 
         $volunteers = [
-            // User 1: Rảnh toàn bộ ca (12:00 -> 18:00)
             [
-                'id' => 1, 'full_name' => 'User Rảnh Đủ',
-                'skills' => [],
-                'availability' => [['date' => '2024-03-20', 'time_start' => '12:00:00', 'time_end' => '18:00:00']]
+                'id' => 1, 'full_name' => 'User 1',
+                'skills' => []
             ],
-            // User 2: Chỉ khai báo rảnh nửa ca nhưng đã đăng ký
             [
-                'id' => 2, 'full_name' => 'User Rảnh Thiếu Giờ',
-                'skills' => [],
-                'availability' => [['date' => '2024-03-20', 'time_start' => '13:00:00', 'time_end' => '15:00:00']]
+                'id' => 2, 'full_name' => 'User 2',
+                'skills' => []
             ],
-            // User 3: Không khai báo rảnh đúng ngày nhưng đã đăng ký
             [
-                'id' => 3, 'full_name' => 'User Không Rảnh',
-                'skills' => [],
-                'availability' => [['date' => '2024-03-21', 'time_start' => '08:00:00', 'time_end' => '18:00:00']]
+                'id' => 3, 'full_name' => 'User 3',
+                'skills' => []
             ]
         ];
 
@@ -138,9 +132,9 @@ class TestRunner
         $val = ConstraintValidator::validate($shifts, $volunteers, $res['assignments']);
 
         $pass = ($pass && $val['is_valid']);
-        $this->record("TC02 - Không yêu cầu khai báo rảnh toàn ca với người đã đăng ký", $pass,
-            $pass ? "Hai thuật toán phân công đủ cả 3 TNV đã đăng ký dù chỉ rảnh một phần hoặc chưa khai báo lịch rảnh."
-                  : "Lỗi: TNV đã đăng ký nhưng bị loại do chưa khai báo rảnh toàn ca!");
+        $this->record("TC02 - Xét TNV đăng ký theo kỹ năng và xung đột ca", $pass,
+            $pass ? "Hai thuật toán phân công đủ cả 3 TNV đăng ký dựa trên kỹ năng, thời gian và chỉ tiêu."
+                  : "Lỗi: TNV đã đăng ký bị loại dù đáp ứng các điều kiện phân công.");
     }
 
     /**
@@ -164,11 +158,10 @@ class TestRunner
         ];
 
         $volunteers = [
-            // User 1: Đăng ký cả 2 ca, rảnh cả ngày
+            // User 1: Đăng ký cả 2 ca
             [
                 'id' => 1, 'full_name' => 'User Đăng Ký Cả 2 Ca Trùng',
-                'skills' => [],
-                'availability' => [['date' => '2024-03-20', 'time_start' => '07:00:00', 'time_end' => '18:00:00']]
+                'skills' => []
             ]
         ];
 
@@ -208,13 +201,12 @@ class TestRunner
             ]
         ];
 
-        // 5 ứng viên đều hợp lệ và rảnh
+        // 5 ứng viên đều hợp lệ
         $volunteers = [];
         for ($i = 1; $i <= 5; $i++) {
             $volunteers[] = [
                 'id' => $i, 'full_name' => "User $i",
-                'skills' => [],
-                'availability' => [['date' => '2024-03-20', 'time_start' => '07:00:00', 'time_end' => '18:00:00']]
+                'skills' => []
             ];
         }
 
@@ -263,10 +255,10 @@ class TestRunner
 
         // 4 volunteers: User 1 có kỹ năng 1, User 2 có kỹ năng 1, User 3 & 4 không có kỹ năng 1
         $volunteers = [
-            ['id' => 1, 'full_name' => 'Bác Sĩ 1', 'skills' => [1], 'availability' => [['date' => '2024-03-20', 'time_start' => '07:00:00', 'time_end' => '18:00:00']]],
-            ['id' => 2, 'full_name' => 'Bác Sĩ 2', 'skills' => [1], 'availability' => [['date' => '2024-03-20', 'time_start' => '07:00:00', 'time_end' => '18:00:00']]],
-            ['id' => 3, 'full_name' => 'TNV Chung 3', 'skills' => [], 'availability' => [['date' => '2024-03-20', 'time_start' => '07:00:00', 'time_end' => '18:00:00']]],
-            ['id' => 4, 'full_name' => 'TNV Chung 4', 'skills' => [], 'availability' => [['date' => '2024-03-20', 'time_start' => '07:00:00', 'time_end' => '18:00:00']]],
+            ['id' => 1, 'full_name' => 'Bác Sĩ 1', 'skills' => [1]],
+            ['id' => 2, 'full_name' => 'Bác Sĩ 2', 'skills' => [1]],
+            ['id' => 3, 'full_name' => 'TNV Chung 3', 'skills' => []],
+            ['id' => 4, 'full_name' => 'TNV Chung 4', 'skills' => []],
         ];
 
         // Tất cả cùng đăng ký ca 2 (dễ) và ca 1 (khó)
@@ -308,9 +300,9 @@ class TestRunner
     }
 
     /**
-     * TC06: Người thay thế phải khai báo rảnh bao phủ toàn bộ ca
+     * TC06: Người thay thế được xét theo kỹ năng và trùng lịch
      */
-    private function testTC06_ReplacementAvailability(): void
+    private function testTC06_ReplacementEligibility(): void
     {
         $shift = [
             'id' => 1,
@@ -325,43 +317,90 @@ class TestRunner
         $volunteers = [
             [
                 'id' => 1,
-                'full_name' => 'Không khai báo rảnh',
+                'full_name' => 'Người thay thế 1',
                 'skills' => [],
-                'availability' => [],
             ],
             [
                 'id' => 2,
-                'full_name' => 'Chỉ rảnh một phần',
+                'full_name' => 'Người thay thế 2',
                 'skills' => [],
-                'availability' => [['date' => '2024-03-20', 'time_start' => '13:00:00', 'time_end' => '15:00:00']],
             ],
             [
                 'id' => 3,
-                'full_name' => 'Rảnh toàn ca',
+                'full_name' => 'TNV khác',
                 'skills' => [],
-                'availability' => [['date' => '2024-03-20', 'time_start' => '12:00:00', 'time_end' => '18:00:00']],
             ],
         ];
         $result = ConstraintValidator::validate([$shift], $volunteers, [], [1 => [1, 2, 3]]);
-        $availabilityViolations = array_column(
-            array_filter($result['violations'], static fn(array $violation): bool => $violation['type'] === 'availability'),
-            'user_id'
-        );
-        $pass = !$result['is_valid']
-            && count($availabilityViolations) === 2
-            && in_array(1, $availabilityViolations, true)
-            && in_array(2, $availabilityViolations, true)
-            && !in_array(3, $availabilityViolations, true)
-            && !ReplacementModel::isAvailableForShift([], $shift['date'], $shift['time_start'], $shift['time_end'])
-            && !ReplacementModel::isAvailableForShift($volunteers[1]['availability'], $shift['date'], $shift['time_start'], $shift['time_end'])
-            && ReplacementModel::isAvailableForShift($volunteers[2]['availability'], $shift['date'], $shift['time_start'], $shift['time_end']);
+        $pass = $result['is_valid'] && $result['violations_count'] === 0;
 
         $this->record(
-            'TC06 - Người thay thế phải rảnh toàn bộ ca',
+            'TC06 - Điều kiện chọn người thay thế',
             $pass,
             $pass
-                ? 'Người không khai báo hoặc chỉ rảnh một phần bị loại; người rảnh toàn ca hợp lệ.'
-                : 'Lỗi: Điều kiện lịch rảnh của người thay thế chưa được kiểm tra đúng.'
+                ? 'Ứng viên thay thế được xét theo kỹ năng, phân công hiện tại và xung đột ca.'
+                : 'Lỗi: Ứng viên thay thế không được chấp nhận.'
+        );
+    }
+
+    /**
+     * TC07: Cân bằng tải dựa trên tổng thời lượng ca, không chỉ số ca
+     */
+    private function testTC07_WorkloadByDuration(): void
+    {
+        $shift = [
+            'id' => 1,
+            'name' => 'Ca dài',
+            'date' => '2024-03-20',
+            'time_start' => '08:00:00',
+            'time_end' => '16:00:00',
+            'min_volunteers' => 1,
+            'max_volunteers' => 1,
+            'mandatory_skills' => [],
+        ];
+        $volunteers = [
+            ['id' => 1, 'full_name' => 'Nhiều giờ đã phân công', 'skills' => [], 'workload_minutes' => 180],
+            ['id' => 2, 'full_name' => 'Ít giờ đã phân công', 'skills' => [], 'workload_minutes' => 60],
+        ];
+
+        $result = (new ImprovedGreedy())->execute([$shift], $volunteers, [1 => [1, 2]]);
+        $assignedUser = $result['assignments'][1][0] ?? null;
+        $pass = $assignedUser === 2;
+
+        $this->record(
+            'TC07 - Cân bằng tải theo thời lượng ca',
+            $pass,
+            $pass
+                ? 'Ứng viên có tổng thời lượng phân công thấp hơn được ưu tiên.'
+                : 'Lỗi: Thuật toán chưa ưu tiên tổng thời lượng phân công thấp hơn.'
+        );
+    }
+
+    private function testTC08_PointsRules(): void
+    {
+        $tiers = [
+            0 => 'bronze',
+            100 => 'bronze',
+            101 => 'silver',
+            500 => 'silver',
+            501 => 'gold',
+            1500 => 'gold',
+            1501 => 'diamond',
+        ];
+        $tiersPass = true;
+        foreach ($tiers as $points => $expected) {
+            $tiersPass = $tiersPass && PointsModel::tierForPoints($points) === $expected;
+        }
+        $calculated = PointsModel::calculateBasePoints(2.5, 1, 1);
+        $capped = PointsModel::capPositiveAward(10, 27, 30) === 3
+            && PointsModel::capPositiveAward(10, 30, 30) === 0;
+        $pass = $tiersPass && $calculated === 3 && $capped
+            && PointsModel::capPositiveAward(-10, 30, 30) === -10;
+        $this->record(
+            'TC08 - Quy đổi điểm, cấp bậc và giới hạn ngày',
+            $pass,
+            $pass ? 'Đúng ngưỡng tier, làm tròn điểm giờ và giới hạn 30 điểm dương mỗi ngày.'
+                : 'Lỗi: Quy tắc tính điểm hoặc giới hạn ngày không đúng.'
         );
     }
 

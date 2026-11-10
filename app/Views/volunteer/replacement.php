@@ -26,7 +26,11 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                     <select class="form-select rounded-3" id="assignment_id" name="assignment_id" required>
                         <option value="">-- Chọn ca trực của bạn --</option>
                         <?php foreach ($myAssignments as $asgn): ?>
-                            <?php if (!in_array($asgn['attendance_status'], ['absent', 'replaced'], true) && ($asgn['replacement_status'] ?? '') !== 'pending'): ?>
+                            <?php if (
+                                in_array($asgn['assignment_status'], ['assigned', 'confirmed'], true)
+                                && !in_array($asgn['attendance_status'], ['absent', 'replaced'], true)
+                                && ($asgn['replacement_status'] ?? '') !== 'pending'
+                            ): ?>
                                 <option value="<?= $asgn['id'] ?>">
                                     <?= htmlspecialchars($asgn['shift_name']) ?> (<?= date('d/m/Y', strtotime($asgn['shift_date'])) ?>) - <?= htmlspecialchars($asgn['activity_title']) ?>
                                 </option>

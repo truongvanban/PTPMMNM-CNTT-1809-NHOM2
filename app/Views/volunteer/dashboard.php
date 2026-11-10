@@ -5,18 +5,6 @@
 use App\Core\Session;
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
 $userName = Session::userName();
-$unlockedBadges = array_filter($badges ?? [], fn($b) => !empty($b['unlocked']));
-$unlockedCount = count($unlockedBadges);
-$totalBadges = count($badges ?? []);
-
-// Progress percent towards next level
-$nextLevelPoints = 200;
-if ($level === 2) {
-    $nextLevelPoints = 500;
-} elseif ($level >= 3) {
-    $nextLevelPoints = 1000;
-}
-$progressPercent = min(100, max(10, round(($impactPoints / $nextLevelPoints) * 100)));
 ?>
 
 <!-- Welcome Banner -->
@@ -42,67 +30,29 @@ $progressPercent = min(100, max(10, round(($impactPoints / $nextLevelPoints) * 1
     </div>
 </div>
 
-<!-- Gamification & Level Widget -->
-<div class="card border-0 shadow-sm rounded-4 p-4 mb-4" style="background: radial-gradient(circle at 85% 20%, rgba(20, 184, 166, 0.35) 0%, transparent 50%), linear-gradient(135deg, #064e3b 0%, #065f46 55%, #047857 100%); color: white;">
-    <div class="row align-items-center g-4">
-        <!-- Level & Points -->
-        <div class="col-lg-6">
-            <div class="d-flex align-items-center gap-3 mb-3">
-                <div class="rounded-circle bg-white text-success d-flex align-items-center justify-content-center shadow flex-shrink-0" style="width: 65px; height: 65px; font-size: 2rem;">
-                    <i class="bi bi-award-fill text-warning"></i>
-                </div>
-                <div>
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <span class="badge bg-warning text-dark fw-bold rounded-pill px-3 py-1">
-                            <i class="bi bi-shield-fill-check me-1"></i> Cấp độ <?= $level ?>
-                        </span>
-                        <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-2 py-1 small">
-                            <?= htmlspecialchars($levelName) ?>
-                        </span>
-                    </div>
-                    <h2 class="h4 fw-bold mb-0 text-white">
-                        <?= number_format($impactPoints) ?> <span class="fs-6 fw-normal text-white-50">điểm cống hiến</span>
-                    </h2>
-                </div>
-            </div>
-
-            <!-- Progress to next level -->
-            <div>
-                <div class="d-flex justify-content-between small text-white-50 mb-1">
-                    <span>Tiến độ cấp độ tiếp theo</span>
-                    <span><?= $impactPoints ?> / <?= $nextLevelPoints ?> pts (<?= $progressPercent ?>%)</span>
-                </div>
-                <div class="progress rounded-pill" style="height: 8px; background: rgba(255, 255, 255, 0.2);">
-                    <div class="progress-bar bg-warning rounded-pill" role="progressbar" style="width: <?= $progressPercent ?>%;" aria-valuenow="<?= $progressPercent ?>" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-            </div>
+<!-- Ledger-backed points summary -->
+<div class="card border-0 shadow-sm rounded-4 p-4 mb-4 text-white" style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%);">
+    <div class="row align-items-center g-3">
+        <div class="col-md-5">
+            <div class="small text-white-50">Điểm cống hiến</div>
+            <div class="h2 fw-bold mb-1"><?= number_format($pointsSummary['points']) ?></div>
+            <span class="badge bg-warning text-dark"><?= htmlspecialchars($pointsSummary['tier_label']) ?></span>
         </div>
-
-        <!-- Badges Showcase -->
-        <div class="col-lg-6">
-            <div class="d-flex justify-content-between align-items-center mb-2 text-white-50 small">
-                <span class="fw-semibold text-white"><i class="bi bi-patch-check-fill text-warning me-1"></i> Bộ sưu tập huy hiệu</span>
-                <span class="badge bg-white bg-opacity-20 text-white rounded-pill"><?= $unlockedCount ?> / <?= $totalBadges ?> mở khóa</span>
-            </div>
-            <div class="row g-2">
-                <?php foreach ($badges as $badge): ?>
-                    <div class="col-6 col-sm-3">
-                        <div class="p-2 rounded-3 text-center h-100 d-flex flex-column align-items-center justify-content-center <?= $badge['unlocked'] ? 'bg-white bg-opacity-25 text-white border border-white border-opacity-30' : 'bg-black bg-opacity-20 text-white-50 border border-transparent' ?>" 
-                             data-bs-toggle="tooltip" data-bs-placement="top" title="<?= htmlspecialchars($badge['desc']) ?>"
-                             style="cursor: pointer; transition: transform 0.2s;">
-                            <div class="mb-1" style="font-size: 1.45rem;">
-                                <i class="bi <?= $badge['icon'] ?> <?= $badge['unlocked'] ? 'text-warning' : 'opacity-50' ?>"></i>
-                            </div>
-                            <div style="font-size: 0.72rem; line-height: 1.2;" class="fw-semibold text-truncate w-100">
-                                <?= htmlspecialchars($badge['name']) ?>
-                            </div>
-                            <span class="badge rounded-pill mt-1 <?= $badge['unlocked'] ? 'bg-success text-white' : 'bg-secondary text-white-50' ?>" style="font-size: 0.58rem; padding: 0.15rem 0.4rem;">
-                                <?= $badge['unlocked'] ? 'Đã đạt' : 'Chưa đạt' ?>
-                            </span>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
+        <div class="col-md-5">
+            <?php if ($pointsSummary['next_tier_points'] !== null): ?>
+                <div class="d-flex justify-content-between small mb-1">
+                    <span>Đến hạng <?= htmlspecialchars($pointsSummary['next_tier_label']) ?></span>
+                    <strong>Còn <?= number_format($pointsSummary['points_to_next_tier']) ?> điểm</strong>
+                </div>
+                <div class="progress"><div class="progress-bar bg-warning" style="width: <?= $pointsSummary['progress'] ?>%"></div></div>
+            <?php else: ?>
+                <span>Bạn đã đạt hạng cao nhất.</span>
+            <?php endif; ?>
+        </div>
+        <div class="col-md-2 text-md-end">
+            <a href="<?= rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/') ?>/volunteer/points" class="btn btn-light btn-sm text-success fw-semibold">
+                Xem thành tích
+            </a>
         </div>
     </div>
 </div>
@@ -212,7 +162,11 @@ $progressPercent = min(100, max(10, round(($impactPoints / $nextLevelPoints) * 1
                                         <small class="text-muted"><i class="bi bi-clock me-1"></i><?= substr($asgn['time_start'], 0, 5) ?> - <?= substr($asgn['time_end'], 0, 5) ?></small>
                                     </td>
                                     <td>
-                                        <?php if ($asgn['attendance_status'] === 'confirmed'): ?>
+                                        <?php if ($asgn['attendance_status'] === 'completed'): ?>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1">
+                                                <i class="bi bi-award-fill me-1"></i> Đã hoàn thành
+                                            </span>
+                                        <?php elseif ($asgn['attendance_status'] === 'confirmed'): ?>
                                             <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">
                                                 <i class="bi bi-check-circle-fill me-1"></i> Đã xác nhận
                                             </span>
@@ -227,7 +181,7 @@ $progressPercent = min(100, max(10, round(($impactPoints / $nextLevelPoints) * 1
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
-                                        <?php if ($asgn['attendance_status'] === 'assigned'): ?>
+                                        <?php if ($asgn['assignment_status'] === 'assigned' && $asgn['attendance_status'] === 'pending'): ?>
                                             <form action="<?= $baseUrl ?>/volunteer/confirm" method="POST" class="d-inline">
                                                 <input type="hidden" name="_csrf_token" value="<?= Session::generateCsrf() ?>">
                                                 <input type="hidden" name="assignment_id" value="<?= $asgn['id'] ?>">
@@ -288,10 +242,6 @@ $progressPercent = min(100, max(10, round(($impactPoints / $nextLevelPoints) * 1
             <div class="d-grid gap-2">
                 <a href="<?= $baseUrl ?>/volunteer/activities" class="btn btn-outline-success btn-sm text-start py-2 rounded-3 d-flex align-items-center justify-content-between">
                     <span><i class="bi bi-compass me-2"></i> Khám phá hoạt động</span>
-                    <i class="bi bi-chevron-right small text-muted"></i>
-                </a>
-                <a href="<?= $baseUrl ?>/volunteer/availability" class="btn btn-outline-primary btn-sm text-start py-2 rounded-3 d-flex align-items-center justify-content-between">
-                    <span><i class="bi bi-clock-history me-2"></i> Khai báo lịch rảnh</span>
                     <i class="bi bi-chevron-right small text-muted"></i>
                 </a>
                 <a href="<?= $baseUrl ?>/volunteer/replacement" class="btn btn-outline-danger btn-sm text-start py-2 rounded-3 d-flex align-items-center justify-content-between">

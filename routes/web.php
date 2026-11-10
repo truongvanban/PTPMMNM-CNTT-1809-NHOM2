@@ -23,6 +23,8 @@ return [
 
     // ─── Khu vực Tình nguyện viên ─────────────────────────────
     ['GET',  '/volunteer/dashboard',           'Volunteer\DashboardController@index',        'volunteer'],
+    ['GET',  '/volunteer/points',              'Volunteer\PointsController@index',           'volunteer'],
+    ['GET',  '/volunteer/points/certificate', 'Volunteer\PointsController@certificate',    'volunteer'],
     ['GET',  '/volunteer/activities',          'Volunteer\ActivityController@index',         'volunteer'],
     ['POST', '/volunteer/activities/register', 'Volunteer\ActivityController@registerShift', 'volunteer'],
     ['GET',  '/volunteer/activities/{id}',     'Volunteer\ActivityController@detail',        'volunteer'],
@@ -30,9 +32,6 @@ return [
     ['POST', '/volunteer/profile',         'Volunteer\ProfileController@update',     'volunteer'],
     ['GET',  '/volunteer/skills',          'Volunteer\ProfileController@skills',     'volunteer'],
     ['POST', '/volunteer/skills',          'Volunteer\ProfileController@updateSkills','volunteer'],
-    ['GET',  '/volunteer/availability',    'Volunteer\AvailabilityController@index', 'volunteer'],
-    ['POST', '/volunteer/availability',    'Volunteer\AvailabilityController@store', 'volunteer'],
-    ['POST', '/volunteer/availability/delete', 'Volunteer\AvailabilityController@delete','volunteer'],
     ['GET',  '/volunteer/shifts',          'Volunteer\ShiftController@available',    'volunteer'],
     ['POST', '/volunteer/register',        'Volunteer\ShiftController@register',     'volunteer'],
     ['POST', '/volunteer/unregister',      'Volunteer\ShiftController@unregister',   'volunteer'],
@@ -73,6 +72,8 @@ return [
     ['GET',  '/coordinator/assignment/manual/{shiftId}','Coordinator\AssignmentController@manualForm','coordinator'],
     ['POST', '/coordinator/assignment/manual/add',     'Coordinator\AssignmentController@manualAdd',  'coordinator'],
     ['POST', '/coordinator/assignment/manual/remove',  'Coordinator\AssignmentController@manualRemove','coordinator'],
+    ['POST', '/coordinator/assignment/complete',      'Coordinator\AssignmentController@completeAssignment','coordinator'],
+    ['POST', '/coordinator/assignment/no-show',       'Coordinator\AssignmentController@markNoShow','coordinator'],
     ['GET',  '/coordinator/replacement',               'Coordinator\ReplacementController@index',     'coordinator'],
     ['POST', '/coordinator/replacement/approve',       'Coordinator\ReplacementController@approve',   'coordinator'],
     ['POST', '/coordinator/replacement/reject',        'Coordinator\ReplacementController@reject',    'coordinator'],
@@ -82,6 +83,11 @@ return [
 
     // ─── Khu vực Admin ─────────────────────────────────────────
     ['GET',  '/admin/dashboard',                       'Admin\DashboardController@index',    'admin'],
+    ['GET',  '/admin/points',                          'Admin\PointsController@index',       'admin'],
+    ['POST', '/admin/points/settings',                'Admin\PointsController@saveSettings','admin'],
+    ['POST', '/admin/points/terms',                   'Admin\PointsController@saveTerm',   'admin'],
+    ['POST', '/admin/points/terms/delete',            'Admin\PointsController@deleteTerm','admin'],
+    ['POST', '/admin/points/activity-multiplier',     'Admin\PointsController@saveActivityMultiplier','admin'],
     ['GET',  '/admin/users',                           'Admin\UserController@index',          'admin'],
     ['POST', '/admin/users/create',                    'Admin\UserController@create',         'admin'],
     ['POST', '/admin/users/delete',                    'Admin\UserController@deleteMultiple','admin'],

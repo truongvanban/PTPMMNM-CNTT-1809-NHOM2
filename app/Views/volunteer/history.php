@@ -7,11 +7,11 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
 <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
-            <span class="vh-section-badge">Hành Trình Cống Hiến</span>
+            <span class="vh-section-badge">Lịch Sử Ca Trực</span>
             <h1 class="h3 fw-bold mb-1 text-dark">
-                <i class="bi bi-clock-history text-success me-2"></i>Lịch Sử Hoạt Động & Tham Gia
+                <i class="bi bi-clock-history text-success me-2"></i>Lịch Sử Ca Trực
             </h1>
-            <p class="text-muted small mb-0">Nhật ký toàn bộ các ca trực bạn đã từng được phân công trong cộng đồng</p>
+            <p class="text-muted small mb-0">Theo dõi các ca đã phân công và kết quả tham gia; lịch sử giao dịch điểm nằm trong mục Điểm cống hiến & Thi đua.</p>
         </div>
         <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill font-monospace">
             <i class="bi bi-calendar2-check-fill me-1"></i> <?= count($assignments) ?> ca trực đã tham gia
@@ -58,7 +58,11 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                 <i class="bi bi-geo-alt-fill text-danger me-1"></i><?= htmlspecialchars($asgn['activity_location'] ?? 'Chưa rõ') ?>
                             </td>
                             <td class="text-center">
-                                <?php if ($asgn['attendance_status'] === 'confirmed'): ?>
+                                <?php if ($asgn['attendance_status'] === 'completed'): ?>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1">
+                                        <i class="bi bi-award-fill me-1"></i> Đã hoàn thành
+                                    </span>
+                                <?php elseif ($asgn['attendance_status'] === 'confirmed'): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1">
                                         <i class="bi bi-check-circle-fill me-1"></i> Đã tham gia
                                     </span>

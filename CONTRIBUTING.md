@@ -28,7 +28,7 @@ Cảm ơn bạn đã quan tâm đến việc đóng góp cho dự án mã nguồ
    ```
 6. **Commit và Push**:
    ```bash
-   git commit -m "feat: bổ sung tính năng gợi ý ca theo lịch rảnh"
+   git commit -m "feat: cải thiện gợi ý phân công tình nguyện viên"
    git push origin feature/ten-tinh-nang-moi
    ```
 7. **Tạo Pull Request (PR)** trên GitHub kèm mô tả chi tiết các thay đổi.

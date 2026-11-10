@@ -14,27 +14,14 @@ class ReplacementModel extends BaseModel
 {
     protected string $table = 'replacement_requests';
 
-    public static function isAvailableForShift(array $availability, string $date, string $timeStart, string $timeEnd): bool
-    {
-        foreach ($availability as $period) {
-            if (
-                ($period['date'] ?? null) === $date
-                && ($period['time_start'] ?? '') <= $timeStart
-                && ($period['time_end'] ?? '') >= $timeEnd
-            ) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     public function createRequest(int $assignmentId, int $requesterId, string $reason): array
     {
         try {
             $this->db->beginTransaction();
             $stmt = $this->db->prepare(
-                "SELECT a.*, s.name AS shift_name, s.date AS shift_date, s.status AS shift_status,
+                "SELECT a.*, s.name AS shift_name, s.date AS shift_date, s.time_start,
+                        s.status AS shift_status,
+                        TIMESTAMPDIFF(MINUTE, NOW(), TIMESTAMP(s.date, s.time_start)) AS minutes_until_shift,
                         act.coordinator_id, act.status AS activity_status
                  FROM assignments a
                  JOIN shifts s ON a.shift_id = s.id
@@ -71,6 +58,29 @@ class ReplacementModel extends BaseModel
                 "INSERT INTO replacement_requests (assignment_id, requester_id, reason, status)
                  VALUES (?, ?, ?, 'pending')"
             )->execute([$assignmentId, $requesterId, $reason]);
+            $minutesUntilShift = (int)$assignment['minutes_until_shift'];
+            if ($minutesUntilShift >= 0 && $minutesUntilShift < 12 * 60) {
+                $pointsModel = new PointsModel();
+                $settings = $pointsModel->getSettings();
+                $penalty = $pointsModel->recordInTransaction(
+                    $requesterId,
+                    -(int)$settings['late_cancel_penalty'],
+                    'late_cancel',
+                    (int)$assignment['shift_id'],
+                    "Phạt báo vắng dưới 12 giờ trước ca '{$assignment['shift_name']}' ngày {$assignment['shift_date']}"
+                );
+                if ($penalty !== false) {
+                    $this->db->prepare(
+                        "INSERT INTO notifications (user_id, type, title, message, link)
+                         VALUES (?, 'system', ?, ?, '/volunteer/points')"
+                    )->execute([
+                        $requesterId,
+                        'Đã áp dụng điểm phạt báo vắng trễ',
+                        'Yêu cầu báo vắng của bạn được gửi trong vòng 12 giờ trước ca và bị trừ ' .
+                            abs($penalty) . ' điểm.',
+                    ]);
+                }
+            }
 
             $this->db->prepare("UPDATE attendance SET note = ? WHERE assignment_id = ?")
                 ->execute(["Đang gửi yêu cầu báo vắng: $reason", $assignmentId]);
@@ -236,7 +246,7 @@ class ReplacementModel extends BaseModel
     }
 
     /**
-     * Tìm danh sách ứng viên phù hợp để thay thế (đáp ứng kỹ năng + không trùng lịch + rảnh)
+     * Tìm ứng viên thay thế phù hợp theo kỹ năng và lịch phân công hiện tại.
      */
     public function findEligibleReplacements(int $shiftId, int $excludeUserId): array
     {
@@ -297,30 +307,11 @@ class ReplacementModel extends BaseModel
                 if (!$hasAll) continue;
             }
 
-            // 4. Kiểm tra lịch rảnh (availability)
-            $availStmt = $this->db->prepare(
-                "SELECT date, time_start, time_end FROM availability WHERE user_id = ? AND date = ?"
-            );
-            $availStmt->execute([$uid, $shift['date']]);
-            $isAvailable = self::isAvailableForShift(
-                $availStmt->fetchAll(),
-                $shift['date'],
-                $shift['time_start'],
-                $shift['time_end']
-            );
-            if (!$isAvailable) {
-                continue;
-            }
-
-            $vol['is_available'] = $isAvailable;
             $eligible[] = $vol;
         }
 
-        // Ưu tiên người rảnh trước, rồi đến ít ca hơn
+        // Ưu tiên tình nguyện viên đang có ít ca phân công hơn.
         usort($eligible, function($a, $b) {
-            if ($a['is_available'] !== $b['is_available']) {
-                return $b['is_available'] <=> $a['is_available'];
-            }
             return $a['current_assignments_count'] <=> $b['current_assignments_count'];
         });
 
@@ -409,20 +400,6 @@ class ReplacementModel extends BaseModel
 
                 // Kiểm tra lại ràng buộc người thay
                 $shiftModel = new ShiftModel();
-                $availabilityStmt = $this->db->prepare(
-                    "SELECT date, time_start, time_end FROM availability WHERE user_id = ? AND date = ? FOR UPDATE"
-                );
-                $availabilityStmt->execute([$replacementUserId, $req['shift_date']]);
-                if (!self::isAvailableForShift(
-                    $availabilityStmt->fetchAll(),
-                    $req['shift_date'],
-                    $req['time_start'],
-                    $req['time_end']
-                )) {
-                    $this->db->rollBack();
-                    return ['success' => false, 'message' => 'Người thay thế chưa khai báo rảnh trong toàn bộ ca trực.'];
-                }
-
                 $existingAssignmentStmt = $this->db->prepare(
                     "SELECT id, status FROM assignments
                      WHERE shift_id = ? AND user_id = ?

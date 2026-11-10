@@ -235,19 +235,36 @@ class ShiftModel extends BaseModel
     public function hasTimeConflict(int $userId, int $shiftId): bool
     {
         $stmt = $this->db->prepare(
-            "SELECT s.id
-             FROM assignments asgn
-             JOIN shifts s ON asgn.shift_id = s.id
-             JOIN shifts target ON target.id = ?
-             WHERE asgn.user_id = ?
-               AND asgn.status NOT IN ('removed', 'replaced', 'absent')
-               AND asgn.shift_id != ?
-               AND s.date = target.date
-               AND s.time_start < target.time_end
-               AND s.time_end > target.time_start
+            "SELECT target.id
+             FROM shifts target
+             WHERE target.id = ?
+               AND (
+                   EXISTS (
+                       SELECT 1
+                       FROM assignments asgn
+                       JOIN shifts existing ON existing.id = asgn.shift_id
+                       WHERE asgn.user_id = ?
+                         AND asgn.shift_id != target.id
+                         AND asgn.status NOT IN ('removed', 'replaced', 'absent')
+                         AND existing.date = target.date
+                         AND existing.time_start < target.time_end
+                         AND existing.time_end > target.time_start
+                   )
+                   OR EXISTS (
+                       SELECT 1
+                       FROM registrations reg
+                       JOIN shifts existing ON existing.id = reg.shift_id
+                       WHERE reg.user_id = ?
+                         AND reg.shift_id != target.id
+                         AND reg.status IN ('pending', 'approved')
+                         AND existing.date = target.date
+                         AND existing.time_start < target.time_end
+                         AND existing.time_end > target.time_start
+                   )
+               )
              LIMIT 1"
         );
-        $stmt->execute([$shiftId, $userId, $shiftId]);
+        $stmt->execute([$shiftId, $userId, $userId]);
         return (bool)$stmt->fetch();
     }
 

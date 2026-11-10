@@ -3,6 +3,8 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
 $assignedCount = count($assignedList);
 $minVol = (int)$shift['min_volunteers'];
 $maxVol = (int)$shift['max_volunteers'];
+$shiftHasEnded = strtotime($shift['date'] . ' ' . $shift['time_end']) <= time();
+$scheduledHours = max(0.1, (strtotime($shift['time_end']) - strtotime($shift['time_start'])) / 3600);
 ?>
 <div class="mb-4">
     <nav aria-label="breadcrumb">
@@ -89,23 +91,50 @@ $maxVol = (int)$shift['max_volunteers'];
                                         <small class="text-muted"><?= htmlspecialchars($asgn['phone'] ?? '-') ?></small>
                                     </td>
                                     <td>
-                                        <?php if ($asgn['attendance_status'] === 'confirmed'): ?>
+                                        <?php if ($asgn['attendance_status'] === 'completed'): ?>
+                                            <span class="badge bg-primary">Đã hoàn thành</span>
+                                        <?php elseif ($asgn['attendance_status'] === 'confirmed'): ?>
                                             <span class="badge bg-success-soft text-success">Đã xác nhận</span>
-                                        <?php elseif ($asgn['attendance_status'] === 'absent'): ?>
+                                        <?php elseif ($asgn['attendance_status'] === 'absent' || $asgn['status'] === 'absent'): ?>
                                             <span class="badge bg-danger-soft text-danger">Báo vắng</span>
                                         <?php else: ?>
                                             <span class="badge bg-warning-soft text-warning">Chờ xác nhận</span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
-                                        <form action="<?= $baseUrl ?>/coordinator/assignment/manual/remove" method="POST" class="d-inline">
-                                            <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
-                                            <input type="hidden" name="assignment_id" value="<?= $asgn['id'] ?>">
-                                            <input type="hidden" name="shift_id" value="<?= $shift['id'] ?>">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Bạn có chắc chắn muốn gỡ tình nguyện viên này khỏi ca?">
-                                                <i class="bi bi-person-dash"></i> Gỡ
-                                            </button>
-                                        </form>
+                                        <?php if (in_array($asgn['status'], ['assigned', 'confirmed'], true) && $asgn['attendance_status'] !== 'completed'): ?>
+                                            <?php if ($shiftHasEnded): ?>
+                                                <form action="<?= $baseUrl ?>/coordinator/assignment/complete" method="POST" class="d-inline-flex flex-wrap justify-content-center gap-1 mb-1">
+                                                    <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
+                                                    <input type="hidden" name="assignment_id" value="<?= $asgn['id'] ?>">
+                                                    <input type="number" class="form-control form-control-sm" style="width: 78px" name="hours_worked" min="0.1" max="24" step="0.1" value="<?= number_format($scheduledHours, 1, '.', '') ?>" required aria-label="Số giờ thực tế">
+                                                    <label class="form-check small d-inline-flex align-items-center gap-1 mb-0">
+                                                        <input class="form-check-input" type="checkbox" name="on_time" value="1">
+                                                        <span>Đúng giờ</span>
+                                                    </label>
+                                                    <button type="submit" class="btn btn-success btn-sm">Hoàn thành</button>
+                                                </form>
+                                                <form action="<?= $baseUrl ?>/coordinator/assignment/no-show" method="POST" class="d-inline">
+                                                    <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
+                                                    <input type="hidden" name="assignment_id" value="<?= $asgn['id'] ?>">
+                                                    <button type="submit" class="btn btn-outline-warning btn-sm" data-confirm="Xác nhận tình nguyện viên vắng mặt không phép?">
+                                                        Vắng không phép
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="small text-muted">Chưa kết thúc</span>
+                                            <?php endif; ?>
+                                            <form action="<?= $baseUrl ?>/coordinator/assignment/manual/remove" method="POST" class="d-inline">
+                                                <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
+                                                <input type="hidden" name="assignment_id" value="<?= $asgn['id'] ?>">
+                                                <input type="hidden" name="shift_id" value="<?= $shift['id'] ?>">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Bạn có chắc chắn muốn gỡ tình nguyện viên này khỏi ca?">
+                                                    <i class="bi bi-person-dash"></i> Gỡ
+                                                </button>
+                                            </form>
+                                        <?php else: ?>
+                                            <span class="small text-muted">Đã xử lý</span>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

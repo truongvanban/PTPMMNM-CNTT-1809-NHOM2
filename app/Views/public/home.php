@@ -274,6 +274,28 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
     <?php endif; ?>
 </section>
 
+<?php if (!empty($monthlyLeaders)): ?>
+<section class="container mb-5">
+    <div class="card border-0 shadow-sm rounded-4 p-4">
+        <div class="text-center mb-3">
+            <span class="vh-section-badge">Vinh danh tháng</span>
+            <h2 class="h4 fw-bold mt-2 mb-0">Top tình nguyện viên cống hiến</h2>
+        </div>
+        <div class="row justify-content-center g-3">
+            <?php foreach ($monthlyLeaders as $index => $leader): ?>
+                <div class="col-md-4">
+                    <div class="rounded-3 bg-light text-center p-3 h-100">
+                        <div class="fs-4 fw-bold text-success">#<?= $index + 1 ?></div>
+                        <div class="fw-semibold"><?= htmlspecialchars($leader['full_name']) ?></div>
+                        <div class="small text-muted"><?= number_format((int)$leader['points']) ?> điểm trong tháng</div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
 <!-- Impact Numbers Banner -->
 <section class="container">
     <div class="vh-impact-banner">

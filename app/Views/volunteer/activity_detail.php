@@ -196,7 +196,9 @@ $activityRegistrationOpen = in_array($activity['status'], ['open', 'ongoing'], t
                     <div class="mt-auto pt-2 border-top">
                         <?php if ($isRegistered): ?>
                             <div class="d-flex justify-content-between align-items-center">
-                                <?php if ($s['my_assignment_status'] === 'confirmed'): ?>
+                                <?php if ($s['my_attendance_status'] === 'completed'): ?>
+                                    <span class="text-primary small fw-semibold"><i class="bi bi-award-fill me-1"></i> Ca đã được ghi nhận hoàn thành</span>
+                                <?php elseif ($s['my_assignment_status'] === 'confirmed'): ?>
                                     <span class="text-success small fw-semibold"><i class="bi bi-check-circle me-1"></i> Bạn đã xác nhận tham gia ca</span>
                                 <?php elseif (in_array($s['my_assignment_status'], ['assigned', 'absent'], true)): ?>
                                     <span class="text-primary small fw-semibold"><i class="bi bi-clock me-1"></i> Bạn đã được phân công, vui lòng xác nhận tham gia</span>

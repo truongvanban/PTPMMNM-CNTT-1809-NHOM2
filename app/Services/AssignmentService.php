@@ -92,7 +92,7 @@ class AssignmentService
             static fn(int $id): bool => $id > 0
         ));
 
-        // 4. Lấy thông tin kỹ năng và lịch rảnh của các tình nguyện viên này
+        // 4. Lấy thông tin tình nguyện viên và kỹ năng
         $volunteers = [];
         if (!empty($userIdList)) {
             $placeholders = implode(',', array_fill(0, count($userIdList), '?'));
@@ -106,6 +106,22 @@ class AssignmentService
             $userStmt->execute($userIdList);
             $users = $userStmt->fetchAll();
 
+            $workloadStmt = $this->db->prepare(
+                "SELECT a.user_id,
+                        COALESCE(SUM(TIMESTAMPDIFF(MINUTE, s.time_start, s.time_end)), 0) AS workload_minutes
+                 FROM assignments a
+                 JOIN shifts s ON s.id = a.shift_id
+                 WHERE a.user_id IN ($placeholders)
+                   AND a.status IN ('assigned', 'confirmed')
+                   AND s.date >= CURRENT_DATE
+                 GROUP BY a.user_id"
+            );
+            $workloadStmt->execute($userIdList);
+            $workloadMinutes = [];
+            while ($workload = $workloadStmt->fetch()) {
+                $workloadMinutes[(int)$workload['user_id']] = (int)$workload['workload_minutes'];
+            }
+
             // Skills
             $skillsQuery = $this->db->prepare(
                 "SELECT user_id, skill_id, level FROM volunteer_skills WHERE user_id IN ($placeholders)"
@@ -116,16 +132,6 @@ class AssignmentService
                 $userSkills[(int)$sk['user_id']][] = (int)$sk['skill_id'];
             }
 
-            // Availability
-            $availQuery = $this->db->prepare(
-                "SELECT user_id, date, time_start, time_end FROM availability WHERE user_id IN ($placeholders)"
-            );
-            $availQuery->execute($userIdList);
-            $userAvails = [];
-            while ($av = $availQuery->fetch()) {
-                $userAvails[(int)$av['user_id']][] = $av;
-            }
-
             foreach ($users as $u) {
                 $uId = (int)$u['id'];
                 $volunteers[] = [
@@ -133,7 +139,7 @@ class AssignmentService
                     'full_name'    => $u['full_name'],
                     'email'        => $u['email'],
                     'skills'       => $userSkills[$uId] ?? [],
-                    'availability' => $userAvails[$uId] ?? [],
+                    'workload_minutes' => $workloadMinutes[$uId] ?? 0,
                 ];
             }
         }
@@ -168,42 +174,49 @@ class AssignmentService
             ? $this->improved->execute($input['shifts'], $input['volunteers'], $input['registrations'])
             : $this->baseline->execute($input['shifts'], $input['volunteers'], $input['registrations']);
 
-        // Lưu vào assignment_runs
-        $stmt = $this->db->prepare(
-            "INSERT INTO assignment_runs (activity_id, run_by, algorithm, status, input_snapshot, config, result_summary, duration_ms)
-             VALUES (?, ?, ?, 'preview', ?, ?, ?, ?)"
-        );
-        $stmt->execute([
-            $activityId,
-            $runBy,
-            $algorithm,
-            json_encode($input, JSON_UNESCAPED_UNICODE),
-            json_encode(['version' => '1.0', 'activity_id' => $activityId], JSON_UNESCAPED_UNICODE),
-            json_encode($result['metrics'], JSON_UNESCAPED_UNICODE),
-            $result['duration_ms'],
-        ]);
-        $runId = (int)$this->db->lastInsertId();
-
-        // Lưu từng item vào assignment_run_items
-        $itemStmt = $this->db->prepare(
-            "INSERT INTO assignment_run_items (run_id, shift_id, assigned_count, required_min, is_sufficient, shortage, reason, assigned_users)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-        );
-
-        foreach ($result['shift_results'] as $sr) {
-            $itemStmt->execute([
-                $runId,
-                $sr['shift_id'],
-                $sr['assigned_count'],
-                $sr['min_volunteers'],
-                $sr['is_sufficient'] ? 1 : 0,
-                $sr['shortage'],
-                $sr['reason'],
-                json_encode($sr['assigned_users']),
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->prepare(
+                "INSERT INTO assignment_runs (activity_id, run_by, algorithm, status, input_snapshot, config, result_summary, duration_ms)
+                 VALUES (?, ?, ?, 'preview', ?, ?, ?, ?)"
+            );
+            $stmt->execute([
+                $activityId,
+                $runBy,
+                $algorithm,
+                json_encode($input, JSON_UNESCAPED_UNICODE),
+                json_encode(['version' => '1.0', 'activity_id' => $activityId], JSON_UNESCAPED_UNICODE),
+                json_encode($result['metrics'], JSON_UNESCAPED_UNICODE),
+                $result['duration_ms'],
             ]);
-        }
+            $runId = (int)$this->db->lastInsertId();
 
-        return $runId;
+            $itemStmt = $this->db->prepare(
+                "INSERT INTO assignment_run_items (run_id, shift_id, assigned_count, required_min, is_sufficient, shortage, reason, assigned_users)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            );
+
+            foreach ($result['shift_results'] as $sr) {
+                $itemStmt->execute([
+                    $runId,
+                    $sr['shift_id'],
+                    $sr['assigned_count'],
+                    $sr['min_volunteers'],
+                    $sr['is_sufficient'] ? 1 : 0,
+                    $sr['shortage'],
+                    $sr['reason'],
+                    json_encode($sr['assigned_users']),
+                ]);
+            }
+
+            $this->db->commit();
+            return $runId;
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function getUnassignedRegistrants(array $input, array $items): array

@@ -1,12 +1,20 @@
 <?php
 /**
  * VolunteerHub - Seed Dữ liệu Mẫu
- * Chạy lệnh: php database/seeders/seed.php
- * Tạo: 30 tình nguyện viên, 5 kỹ năng, nhiều hoạt động, 12 ca, 
- *       lịch rảnh, đăng ký cho 3 bộ dữ liệu kiểm thử A/B/C
+ * Chạy lệnh: php database/seeders/seed.php --reset
+ * Tạo: tài khoản demo, kỹ năng, hoạt động quá khứ/hôm nay/tương lai,
+ *       đăng ký, phân công, điểm danh, báo vắng và điểm cống hiến mẫu.
+ * Dữ liệu hiện có sẽ bị xóa. Chạy rõ ràng với: php database/seeders/seed.php --reset
  */
 
 declare(strict_types=1);
+
+date_default_timezone_set('Asia/Ho_Chi_Minh');
+
+if (($argv[1] ?? '') !== '--reset') {
+    fwrite(STDERR, "Seeder sẽ xóa dữ liệu mẫu hiện có. Chạy lại với tham số --reset để xác nhận.\n");
+    exit(1);
+}
 
 // Tải cấu hình
 $envFile = __DIR__ . '/../../.env';
@@ -42,18 +50,21 @@ $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
 
 // Xoá dữ liệu cũ theo thứ tự
 $tables = [
-    'assignment_history', 'attendance', 'replacement_requests',
+    'assignment_history', 'point_transactions', 'attendance', 'replacement_requests',
     'assignment_run_items', 'assignments', 'assignment_runs',
-    'registrations', 'shift_required_skills', 'shifts',
-    'activities', 'availability', 'volunteer_skills',
+    'registrations', 'shift_required_skills', 'activity_required_skills',
+    'activity_attachments', 'shifts', 'activities', 'academic_terms', 'volunteer_skills',
     'volunteer_profiles', 'user_roles', 'users',
     'skills', 'roles', 'notifications', 'audit_logs'
 ];
+if ($pdo->query("SHOW TABLES LIKE 'availability'")->fetchColumn()) {
+    $tables[] = 'availability';
+}
 foreach ($tables as $table) {
     $pdo->exec("TRUNCATE TABLE `$table`");
 }
 $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
-echo "✔ Đã xoá dữ liệu cũ\n";
+echo "✔ Đã xoá dữ liệu mẫu cũ\n";
 
 // =============================================
 // 1. ROLES
@@ -188,12 +199,13 @@ $baseDate = date('Y-m-d', strtotime('+7 days'));
 
 // Hoạt động 1: Ngày hội hiến máu (Bộ A - đủ người)
 $pdo->prepare(
-    "INSERT INTO activities (coordinator_id, title, description, location, date_start, date_end, registration_deadline, status) 
-     VALUES (?,?,?,?,?,?,?,?)"
+    "INSERT INTO activities (coordinator_id, title, description, category, location, date_start, date_end, registration_deadline, status)
+     VALUES (?,?,?,?,?,?,?,?,?)"
 )->execute([
     $coord1Id,
     'Ngày Hội Hiến Máu Tình Nguyện',
     'Chương trình hiến máu tình nguyện thường niên, hưởng ứng phong trào "Mỗi giọt máu cho đi, một cuộc đời ở lại".',
+    'Y tế',
     'Hội trường A, Trường Đại học XYZ',
     "$baseDate 07:00:00",
     "$baseDate 17:00:00",
@@ -205,12 +217,13 @@ $act1Id = $pdo->lastInsertId();
 // Hoạt động 2: Hiến máu 2 ngày (Bộ B - thiếu người/kỹ năng)
 $date2 = date('Y-m-d', strtotime("$baseDate +7 days"));
 $pdo->prepare(
-    "INSERT INTO activities (coordinator_id, title, description, location, date_start, date_end, registration_deadline, status)
-     VALUES (?,?,?,?,?,?,?,?)"
+    "INSERT INTO activities (coordinator_id, title, description, category, location, date_start, date_end, registration_deadline, status)
+     VALUES (?,?,?,?,?,?,?,?,?)"
 )->execute([
     $coord1Id,
     'Hỗ Trợ Y Tế Cộng Đồng',
     'Chương trình khám sức khỏe miễn phí cho người dân vùng ngoại thành, yêu cầu tình nguyện viên có kỹ năng y tế.',
+    'Y tế',
     'Trạm y tế phường Tân Phú, Quận 7',
     "$date2 08:00:00",
     "$date2 16:00:00",
@@ -222,12 +235,13 @@ $act2Id = $pdo->lastInsertId();
 // Hoạt động 3: Sự kiện giao lưu (Bộ C - trùng lịch)
 $date3 = date('Y-m-d', strtotime("$baseDate +14 days"));
 $pdo->prepare(
-    "INSERT INTO activities (coordinator_id, title, description, location, date_start, date_end, registration_deadline, status)
-     VALUES (?,?,?,?,?,?,?,?)"
+    "INSERT INTO activities (coordinator_id, title, description, category, location, date_start, date_end, registration_deadline, status)
+     VALUES (?,?,?,?,?,?,?,?,?)"
 )->execute([
     $coord2Id,
     'Giao Lưu Sinh Viên Quốc Tế',
     'Sự kiện giao lưu, trao đổi văn hóa với sinh viên quốc tế, cần tình nguyện viên thông thạo tiếng Anh.',
+    'Giao lưu',
     'Khu vực B - Trung tâm Hội nghị',
     "$date3 09:00:00",
     "$date3 18:00:00",
@@ -239,12 +253,13 @@ $act3Id = $pdo->lastInsertId();
 // Hoạt động 4: Sự kiện bổ sung
 $date4 = date('Y-m-d', strtotime("$baseDate +21 days"));
 $pdo->prepare(
-    "INSERT INTO activities (coordinator_id, title, description, location, date_start, date_end, registration_deadline, status)
-     VALUES (?,?,?,?,?,?,?,?)"
+    "INSERT INTO activities (coordinator_id, title, description, category, location, date_start, date_end, registration_deadline, status)
+     VALUES (?,?,?,?,?,?,?,?,?)"
 )->execute([
     $coord2Id,
     'Chương Trình Xanh - Trồng Cây Môi Trường',
     'Trồng cây xanh và dọn vệ sinh môi trường tại công viên thành phố.',
+    'Môi trường',
     'Công viên Tao Đàn',
     "$date4 07:30:00",
     "$date4 11:30:00",
@@ -253,10 +268,48 @@ $pdo->prepare(
 ]);
 $act4Id = $pdo->lastInsertId();
 
-echo "✔ Đã tạo 4 hoạt động\n";
+// Hoạt động 5: hôm nay, luôn có thể tìm thấy trong danh sách hoạt động.
+$today = date('Y-m-d');
+$pdo->prepare(
+    "INSERT INTO activities (coordinator_id, title, description, category, location, date_start, date_end, registration_deadline, status, max_volunteers)
+     VALUES (?,?,?,?,?,?,?,?,?,?)"
+)->execute([
+    $coord1Id,
+    'Ngày Hội Sống Xanh Hôm Nay',
+    'Hoạt động mẫu diễn ra trong ngày hiện tại: thu gom rác, phân loại tái chế và truyền thông bảo vệ môi trường.',
+    'Môi trường',
+    'Công viên Tao Đàn',
+    "$today 07:00:00",
+    "$today 20:00:00",
+    "$today 23:59:59",
+    'open',
+    30,
+]);
+$actTodayId = (int)$pdo->lastInsertId();
+
+// Hoạt động 6: hoạt động đã hoàn tất để kiểm tra lịch sử và bảng điểm.
+$pastDate = date('Y-m-d', strtotime('-1 day'));
+$pdo->prepare(
+    "INSERT INTO activities (coordinator_id, title, description, category, location, date_start, date_end, registration_deadline, status, max_volunteers)
+     VALUES (?,?,?,?,?,?,?,?,?,?)"
+)->execute([
+    $coord2Id,
+    'Ngày Hội Sách Cộng Đồng Đã Hoàn Thành',
+    'Kịch bản quá khứ để kiểm tra lịch sử hoạt động, điểm danh hoàn thành và giao dịch điểm.',
+    'Giáo dục',
+    'Nhà văn hóa Thanh Niên',
+    "$pastDate 08:00:00",
+    "$pastDate 16:00:00",
+    "$pastDate 07:00:00",
+    'completed',
+    20,
+]);
+$actPastId = (int)$pdo->lastInsertId();
+
+echo "✔ Đã tạo 6 hoạt động (bao gồm hoạt động hôm nay và hoạt động đã hoàn thành)\n";
 
 // =============================================
-// 5. SHIFTS (12 ca trực)
+// 5. SHIFTS
 // =============================================
 $shiftStmt = $pdo->prepare(
     "INSERT INTO shifts (activity_id, name, description, date, time_start, time_end, min_volunteers, max_volunteers, status)
@@ -328,49 +381,24 @@ $shiftStmt->execute([$act4Id, 'Trồng Cây Buổi Sáng', 'Trồng cây, dọn 
 $s12 = $pdo->lastInsertId();
 // Không yêu cầu kỹ năng đặc biệt
 
-$shiftIds = [$s1, $s2, $s3, $s4, $s5, $s6, $s7, $s8, $s9, $s10, $s11, $s12];
-echo "✔ Đã tạo 12 ca trực\n";
+// --- Hoạt động hôm nay: hai ca, không yêu cầu kỹ năng để TNV dễ thử đăng ký.
+$shiftStmt->execute([$actTodayId, 'Thu Gom Rác Và Tái Chế', 'Thu gom, phân loại rác tái chế tại công viên.', $today, '08:00:00', '11:00:00', 3, 10, 'open']);
+$s13 = (int)$pdo->lastInsertId();
+$shiftStmt->execute([$actTodayId, 'Truyền Thông Sống Xanh', 'Hướng dẫn người dân và truyền thông bảo vệ môi trường.', $today, '13:00:00', '17:00:00', 2, 8, 'open']);
+$s14 = (int)$pdo->lastInsertId();
+$srsStmt->execute([$s14, 5, 0]);
+
+// --- Hoạt động quá khứ: ca đã kết thúc, có người hoàn thành và vắng mặt.
+$shiftStmt->execute([$actPastId, 'Hướng Dẫn Đọc Sách', 'Hướng dẫn khách tham quan và sắp xếp sách.', $pastDate, '08:00:00', '12:00:00', 2, 8, 'closed']);
+$s15 = (int)$pdo->lastInsertId();
+$shiftStmt->execute([$actPastId, 'Hỗ Trợ Khu Vực Thiếu Nhi', 'Hỗ trợ hoạt động đọc sách cho thiếu nhi.', $pastDate, '13:00:00', '16:00:00', 2, 8, 'closed']);
+$s16 = (int)$pdo->lastInsertId();
+
+$shiftIds = [$s1, $s2, $s3, $s4, $s5, $s6, $s7, $s8, $s9, $s10, $s11, $s12, $s13, $s14, $s15, $s16];
+echo "✔ Đã tạo 16 ca trực\n";
 
 // =============================================
-// 6. AVAILABILITY (Lịch rảnh)
-// =============================================
-$availStmt = $pdo->prepare(
-    "INSERT INTO availability (user_id, date, time_start, time_end, note) VALUES (?,?,?,?,?)"
-);
-
-// Hàm tạo lịch rảnh cho một ngày và nhiều TNV
-function addAvailability(PDOStatement $stmt, array $userIds, string $date, string $tStart, string $tEnd, string $note = ''): void {
-    foreach ($userIds as $uid) {
-        $stmt->execute([$uid, $date, $tStart, $tEnd, $note]);
-    }
-}
-
-// Bộ A - Ngày $baseDate: Hầu hết TNV đều rảnh cả ngày
-$allDayUsers = array_slice($volunteerIds, 0, 20); // 20 TNV đầu rảnh cả ngày
-addAvailability($availStmt, $allDayUsers, $baseDate, '07:00:00', '18:00:00', 'Rảnh cả ngày - Bộ A');
-
-// Một số TNV chỉ rảnh buổi sáng hoặc chiều
-addAvailability($availStmt, array_slice($volunteerIds, 20, 5), $baseDate, '07:00:00', '12:00:00', 'Rảnh buổi sáng - Bộ A');
-addAvailability($availStmt, array_slice($volunteerIds, 25, 5), $baseDate, '13:00:00', '18:00:00', 'Rảnh buổi chiều - Bộ A');
-
-// Bộ B - Ngày $date2: Ít người rảnh (tạo tình huống thiếu người)
-// Chỉ 8 người rảnh, trong đó ít người có kỹ năng y tế
-addAvailability($availStmt, array_slice($volunteerIds, 0, 8), $date2, '07:00:00', '17:00:00', 'Rảnh cả ngày - Bộ B');
-addAvailability($availStmt, array_slice($volunteerIds, 8, 3), $date2, '08:00:00', '12:00:00', 'Rảnh sáng - Bộ B');
-
-// Bộ C - Ngày $date3: Nhiều người rảnh nhưng ca trùng giờ
-// 15 người rảnh nhưng nhiều ca cùng lúc
-addAvailability($availStmt, array_slice($volunteerIds, 0, 15), $date3, '08:00:00', '18:00:00', 'Rảnh cả ngày - Bộ C');
-addAvailability($availStmt, array_slice($volunteerIds, 15, 5), $date3, '09:00:00', '12:00:00', 'Rảnh sáng - Bộ C');
-addAvailability($availStmt, array_slice($volunteerIds, 20, 5), $date3, '14:00:00', '18:00:00', 'Rảnh chiều - Bộ C');
-
-// Ngày $date4: Trồng cây - nhiều người rảnh
-addAvailability($availStmt, array_slice($volunteerIds, 0, 25), $date4, '07:00:00', '12:00:00', 'Rảnh sáng - Trồng cây');
-
-echo "✔ Đã tạo lịch rảnh\n";
-
-// =============================================
-// 7. REGISTRATIONS (Đăng ký ca)
+// 6. REGISTRATIONS (Đăng ký ca)
 // =============================================
 $regStmt = $pdo->prepare(
     "INSERT INTO registrations (user_id, shift_id, status, note, registered_at) VALUES (?,?,?,?,?)"
@@ -440,10 +468,180 @@ registerUsers($regStmt, $itUsers, $s11, 'approved', $regDate3);
 $regDate4 = date('Y-m-d H:i:s', strtotime($date4 . ' -3 days'));
 registerUsers($regStmt, array_slice($volunteerIds, 0, 20), $s12, 'approved', $regDate4);
 
-echo "✔ Đã tạo đăng ký\n";
+// Hoạt động hôm nay: có đăng ký ở nhiều trạng thái để kiểm thử giao diện TNV/ĐPV.
+$todayRegDate = date('Y-m-d H:i:s');
+registerUsers($regStmt, array_slice($volunteerIds, 0, 3), $s13, 'approved', $todayRegDate);
+registerUsers($regStmt, [$volunteerIds[3]], $s13, 'pending', $todayRegDate);
+registerUsers($regStmt, [$volunteerIds[4]], $s13, 'rejected', $todayRegDate);
+registerUsers($regStmt, [$volunteerIds[5]], $s14, 'approved', $todayRegDate);
+registerUsers($regStmt, [$volunteerIds[6]], $s14, 'pending', $todayRegDate);
+registerUsers($regStmt, [$volunteerIds[7]], $s14, 'withdrawn', $todayRegDate);
+
+// Hoạt động đã hoàn thành: lịch sử đăng ký và điểm danh.
+$pastRegDate = date('Y-m-d H:i:s', strtotime("$pastDate -3 days"));
+registerUsers($regStmt, [$volunteerIds[4], $volunteerIds[5], $volunteerIds[6]], $s15, 'approved', $pastRegDate);
+registerUsers($regStmt, [$volunteerIds[7]], $s16, 'cancelled', $pastRegDate);
+registerUsers($regStmt, [$volunteerIds[20], $volunteerIds[21]], $s12, 'approved', $regDate4);
+
+echo "✔ Đã tạo đăng ký ở trạng thái chờ duyệt, đã duyệt, từ chối, hủy và hoàn thành\n";
 
 // =============================================
-// 8. NOTIFICATIONS mẫu
+// 7. ASSIGNMENTS, ATTENDANCE & REPLACEMENTS
+// =============================================
+$assignmentStmt = $pdo->prepare(
+    'INSERT INTO assignments (shift_id, user_id, status, assigned_by, note) VALUES (?, ?, ?, ?, ?)'
+);
+$attendanceStmt = $pdo->prepare(
+    'INSERT INTO attendance (assignment_id, user_id, shift_id, status, hours_worked, confirmed_at, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?)'
+);
+$createAssignment = static function (
+    int $userId,
+    int $shiftId,
+    string $assignmentStatus,
+    string $attendanceStatus,
+    ?float $hours = null
+) use ($pdo, $assignmentStmt, $attendanceStmt, $coord1Id, $pastDate): int {
+    $assignmentStmt->execute([$shiftId, $userId, $assignmentStatus, $coord1Id, 'Phân công mẫu để kiểm thử các trạng thái.']);
+    $assignmentId = (int)$pdo->lastInsertId();
+    if (!in_array($assignmentStatus, ['removed', 'replaced'], true)) {
+        $confirmedAt = match ($attendanceStatus) {
+            'completed' => "$pastDate 12:00:00",
+            'confirmed' => date('Y-m-d H:i:s'),
+            default => null,
+        };
+        $attendanceStmt->execute([
+            $assignmentId,
+            $userId,
+            $shiftId,
+            $attendanceStatus,
+            $hours,
+            $confirmedAt,
+            null,
+        ]);
+    }
+    if ($attendanceStatus === 'completed' && $hours !== null) {
+        $pdo->prepare(
+            'UPDATE volunteer_profiles SET total_hours = total_hours + ? WHERE user_id = ?'
+        )->execute([$hours, $userId]);
+    }
+    return $assignmentId;
+};
+
+$createAssignment((int)$volunteerIds[0], $s13, 'assigned', 'pending');
+$createAssignment((int)$volunteerIds[1], $s13, 'confirmed', 'confirmed');
+$requesterAssignmentId = $createAssignment((int)$volunteerIds[2], $s13, 'assigned', 'pending');
+$createAssignment((int)$volunteerIds[0], $s15, 'confirmed', 'completed', 4.0);
+$createAssignment((int)$volunteerIds[4], $s15, 'confirmed', 'completed', 4.0);
+$createAssignment((int)$volunteerIds[5], $s15, 'confirmed', 'completed', 4.0);
+$noShowAssignmentId = $createAssignment((int)$volunteerIds[6], $s15, 'absent', 'absent');
+$removedAssignmentId = $createAssignment((int)$volunteerIds[7], $s16, 'assigned', 'pending');
+$replacedAssignmentId = $createAssignment((int)$volunteerIds[20], (int)$s12, 'replaced', 'pending');
+$createAssignment((int)$volunteerIds[21], (int)$s12, 'assigned', 'pending');
+$pdo->prepare("UPDATE assignments SET status = 'removed' WHERE id = ?")->execute([$removedAssignmentId]);
+
+$pdo->prepare(
+    "INSERT INTO replacement_requests (assignment_id, requester_id, reason, status)
+     VALUES (?, ?, ?, 'pending')"
+)->execute([
+    $requesterAssignmentId,
+    $volunteerIds[2],
+    'Lịch cá nhân phát sinh, cần tìm người thay thế cho ca trực hôm nay.',
+]);
+$pdo->prepare(
+    "INSERT INTO replacement_requests (assignment_id, requester_id, reason, status, coordinator_note, reviewed_by, reviewed_at)
+     VALUES (?, ?, ?, 'rejected', ?, ?, NOW())"
+)->execute([
+    $noShowAssignmentId,
+    $volunteerIds[6],
+    'Xin đổi ca do không thể tham gia.',
+    'Yêu cầu không phù hợp vì ca đã kết thúc.',
+    $coord1Id,
+]);
+$pdo->prepare(
+    "INSERT INTO replacement_requests (assignment_id, requester_id, replacement_id, reason, status, coordinator_note, reviewed_by, reviewed_at)
+     VALUES (?, ?, ?, ?, 'approved', ?, ?, NOW())"
+)->execute([
+    $replacedAssignmentId,
+    $volunteerIds[20],
+    $volunteerIds[21],
+    'Xin đổi ca và đã được điều phối viên duyệt.',
+    'Đã xác nhận người thay thế cho ca trực.',
+    $coord2Id,
+]);
+$pdo->prepare(
+    "INSERT INTO assignment_history (assignment_id, changed_by, action, old_data, new_data, note)
+     VALUES (?, ?, 'transfer', ?, ?, ?)"
+)->execute([
+    $replacedAssignmentId,
+    $coord2Id,
+    json_encode(['status' => 'assigned', 'user_id' => $volunteerIds[20]]),
+    json_encode(['status' => 'replaced', 'replacement_user_id' => $volunteerIds[21]]),
+    'Thay thế tình nguyện viên theo yêu cầu đã duyệt.',
+]);
+$pdo->prepare(
+    "INSERT INTO assignment_history (assignment_id, changed_by, action, old_data, new_data, note)
+     VALUES (?, ?, 'remove', ?, ?, ?)"
+)->execute([
+    $removedAssignmentId,
+    $coord1Id,
+    json_encode(['status' => 'assigned']),
+    json_encode(['status' => 'removed']),
+    'Phân công mẫu đã được gỡ; lịch sử vẫn được giữ lại.',
+]);
+$pdo->prepare(
+    "INSERT INTO notifications (user_id, type, title, message, link, is_read)
+     VALUES (?, 'replacement', ?, ?, '/volunteer/replacement', 0)"
+)->execute([
+    $volunteerIds[2],
+    'Yêu cầu báo vắng đang chờ xử lý',
+    'Yêu cầu tìm người thay thế cho ca hôm nay đã được gửi đến điều phối viên.',
+]);
+
+echo "✔ Đã tạo phân công, điểm danh, lịch sử gỡ và yêu cầu thay thế mẫu\n";
+
+// =============================================
+// 8. POINT TRANSACTIONS & LEADERBOARD SAMPLE DATA
+// =============================================
+$pointStmt = $pdo->prepare(
+    'INSERT INTO point_transactions (user_id, points, type, reference_id, description, created_by, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)'
+);
+$pointEntries = [
+    [$volunteerIds[0], 20, 'attendance', $s15, 'Hoàn thành ca Hướng Dẫn Đọc Sách (4 giờ).', $coord1Id, "$pastDate 12:15:00"],
+    [$volunteerIds[0], 5, 'on_time_bonus', $s15, 'Thưởng hoàn thành ca đúng giờ.', $coord1Id, "$pastDate 12:16:00"],
+    [$volunteerIds[1], 105, 'bonus', null, 'Điểm mẫu để hiển thị hạng Nhiệt huyết.', $coord1Id, date('Y-m-d H:i:s')],
+    [$volunteerIds[2], 250, 'bonus', null, 'Điểm mẫu tích lũy từ nhiều hoạt động.', $coord1Id, date('Y-m-d H:i:s')],
+    [$volunteerIds[3], 525, 'bonus', null, 'Điểm mẫu để hiển thị hạng Truyền cảm hứng.', $coord1Id, date('Y-m-d H:i:s')],
+    [$volunteerIds[4], 20, 'attendance', $s15, 'Hoàn thành ca Hướng Dẫn Đọc Sách (4 giờ).', $coord1Id, "$pastDate 12:15:00"],
+    [$volunteerIds[4], 5, 'on_time_bonus', $s15, 'Thưởng hoàn thành ca đúng giờ.', $coord1Id, "$pastDate 12:16:00"],
+    [$volunteerIds[4], 1600, 'bonus', null, 'Điểm mẫu để kiểm tra hạng Đại sứ xanh và chứng nhận.', $coord1Id, date('Y-m-d H:i:s')],
+    [$volunteerIds[5], 20, 'attendance', $s15, 'Hoàn thành ca Hướng Dẫn Đọc Sách (4 giờ).', $coord1Id, "$pastDate 12:15:00"],
+    [$volunteerIds[6], -20, 'no_show', $s15, 'Phạt mẫu vắng mặt không phép.', $coord1Id, "$pastDate 16:30:00"],
+];
+foreach ($pointEntries as $entry) {
+    $pointStmt->execute($entry);
+}
+
+$totals = $pdo->query(
+    'SELECT user_id, SUM(points) AS total_points FROM point_transactions GROUP BY user_id'
+)->fetchAll();
+$updatePointsStmt = $pdo->prepare(
+    "UPDATE users SET total_points = ?, current_tier = CASE
+        WHEN ? >= 1501 THEN 'diamond'
+        WHEN ? >= 501 THEN 'gold'
+        WHEN ? >= 101 THEN 'silver'
+        ELSE 'bronze'
+     END WHERE id = ?"
+);
+foreach ($totals as $total) {
+    $points = (int)$total['total_points'];
+    $updatePointsStmt->execute([$points, $points, $points, $points, $total['user_id']]);
+}
+echo "✔ Đã tạo lịch sử điểm và dữ liệu nhiều hạng thi đua\n";
+
+// =============================================
+// 9. NOTIFICATIONS mẫu
 // =============================================
 $notifStmt = $pdo->prepare(
     "INSERT INTO notifications (user_id, type, title, message, link, is_read) VALUES (?,?,?,?,?,?)"
@@ -458,7 +656,7 @@ $notifStmt->execute([
 $notifStmt->execute([
     $volunteerIds[0], 'assignment',
     'Bạn đã được phân công vào Ca trực',
-    'Bạn được phân công vào ca "Hỗ Trợ Y Tế Buổi Sáng" ngày ' . $baseDate . '. Vui lòng xác nhận tham gia.',
+    'Bạn được phân công vào ca "Thu Gom Rác Và Tái Chế" ngày ' . $today . '. Vui lòng xác nhận tham gia.',
     '/volunteer/schedule',
     0
 ]);
@@ -466,7 +664,7 @@ $notifStmt->execute([
 echo "✔ Đã tạo thông báo mẫu\n";
 
 // =============================================
-// 9. AUDIT LOG mẫu
+// 10. AUDIT LOG mẫu
 // =============================================
 $pdo->prepare(
     "INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_data, ip_address) VALUES (?,?,?,?,?,?)"
@@ -489,9 +687,12 @@ echo "Skills:         " . count($skills) . "\n";
 echo "Admin:          1 (admin@volunteerhub.vn / Admin@2024)\n";
 echo "Coordinators:   2 (coord1@volunteerhub.vn / Coord@123)\n";
 echo "Volunteers:     " . count($volunteers) . " (tnv1@volunteerhub.vn .. tnv30@..  / Demo@123)\n";
-echo "Activities:     4\n";
-echo "Shifts:         12\n";
+echo "Activities:     6 (hôm nay: $today; hoạt động đã hoàn thành: $pastDate)\n";
+echo "Shifts:         " . count($shiftIds) . "\n";
 echo "\nBộ A (Đủ người): Hoạt động $act1Id - Ca $s1, $s2, $s3, $s4\n";
 echo "Bộ B (Thiếu người): Hoạt động $act2Id - Ca $s5, $s6, $s7\n";
 echo "Bộ C (Trùng lịch): Hoạt động $act3Id - Ca $s8, $s9, $s10, $s11\n";
+echo "Hôm nay: Hoạt động $actTodayId - Ca $s13, $s14\n";
+echo "Đã hoàn thành: Hoạt động $actPastId - Ca $s15, $s16\n";
+echo "Đăng nhập demo: admin@volunteerhub.vn / Admin@2024; coord1@volunteerhub.vn / Coord@123; tnv1@volunteerhub.vn / Demo@123\n";
 echo "============================================\n";

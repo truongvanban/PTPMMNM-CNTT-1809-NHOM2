@@ -46,7 +46,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                             <!-- Cột chọn người thay & thao tác duyệt -->
                             <div class="col-lg-7">
                                 <h2 class="h6 fw-bold text-uppercase text-secondary mb-2">
-                                    <i class="bi bi-person-check-fill text-success me-1"></i> Ứng viên thay thế phù hợp (Đủ kỹ năng & rảnh)
+                                    <i class="bi bi-person-check-fill text-success me-1"></i> Ứng viên thay thế phù hợp
                                 </h2>
 
                                 <form action="<?= $baseUrl ?>/coordinator/replacement/approve" method="POST" class="mb-3">
@@ -56,7 +56,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                     <div class="mb-3">
                                         <?php if (empty($req['candidates'])): ?>
                                             <div class="alert alert-warning py-2 small mb-2">
-                                                <i class="bi bi-exclamation-triangle me-1"></i> Không tìm thấy tình nguyện viên đã khai báo rảnh toàn bộ ca trực, đủ kỹ năng bắt buộc và không trùng lịch. Bạn có thể duyệt vắng không cần người thay.
+                                                <i class="bi bi-exclamation-triangle me-1"></i> Không tìm thấy tình nguyện viên đủ kỹ năng và không trùng lịch. Bạn có thể duyệt vắng không cần người thay.
                                             </div>
                                             <input type="hidden" name="replacement_user_id" value="0">
                                         <?php else: ?>
@@ -65,7 +65,6 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                                 <?php foreach ($req['candidates'] as $cand): ?>
                                                     <option value="<?= $cand['id'] ?>">
                                                         <?= htmlspecialchars($cand['full_name']) ?> (<?= htmlspecialchars($cand['student_id'] ?? '') ?>)
-                                                        <?= $cand['is_available'] ? ' - [ĐÃ KHAI BÁO RẢNH]' : '' ?>
                                                         [Đang có: <?= (int)$cand['current_assignments_count'] ?> ca]
                                                     </option>
                                                 <?php endforeach; ?>

@@ -53,6 +53,7 @@ class RegistrationModel extends BaseModel
                  INNER JOIN roles r ON r.id = ur.role_id AND r.name = 'volunteer'
                  WHERE u.id = ? AND u.status = 'active'
                  LIMIT 1"
+                 . " FOR UPDATE"
             );
             $volunteerStmt->execute([$userId]);
             $volunteerName = $volunteerStmt->fetchColumn();
@@ -225,36 +226,27 @@ class RegistrationModel extends BaseModel
                 ]);
             }
 
+            if ($isApproved) {
+                $assignmentResult = (new AssignmentModel())->manualAdd(
+                    (int)$registration['shift_id'],
+                    (int)$registration['user_id'],
+                    $coordinatorId
+                );
+                if (!$assignmentResult['success']) {
+                    $this->db->rollBack();
+                    return [
+                        'success' => false,
+                        'message' => 'Không thể duyệt đơn; đơn vẫn ở trạng thái chờ duyệt. ' . $assignmentResult['message'],
+                    ];
+                }
+            }
+
             $this->db->commit();
-
-            if (!$isApproved) {
-                return ['success' => true, 'message' => 'Đã từ chối đơn đăng ký.'];
-            }
-
-            $assignmentResult = (new AssignmentModel())->manualAdd(
-                (int)$registration['shift_id'],
-                (int)$registration['user_id'],
-                $coordinatorId
-            );
-            if ($assignmentResult['success']) {
-                return [
-                    'success' => true,
-                    'message' => 'Đã duyệt đơn và tự động phân công tình nguyện viên vào ca. Tình nguyện viên cần xác nhận tham gia.',
-                ];
-            }
-
-            $this->db->prepare(
-                "INSERT INTO notifications (user_id, type, title, message, link)
-                 VALUES (?, 'registration', ?, ?, '/volunteer/my-registrations')"
-            )->execute([
-                (int)$registration['user_id'],
-                'Đơn đăng ký ca trực đã được duyệt',
-                "Đơn đăng ký ca '{$registration['shift_name']}' thuộc hoạt động '{$registration['activity_title']}' đã được duyệt nhưng chưa thể tự động phân công: {$assignmentResult['message']}"
-            ]);
-
             return [
                 'success' => true,
-                'message' => 'Đã duyệt đơn nhưng chưa thể tự động phân công: ' . $assignmentResult['message'],
+                'message' => $isApproved
+                    ? 'Đã duyệt đơn và phân công tình nguyện viên vào ca. Tình nguyện viên cần xác nhận tham gia.'
+                    : 'Đã từ chối đơn đăng ký.',
             ];
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {

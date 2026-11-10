@@ -112,9 +112,6 @@ $userInitials = mb_strtoupper(mb_substr($userName ?: 'T', 0, 1));
                 <a class="nav-link <?= str_ends_with($currentUri, '/my-registrations') ? 'active' : '' ?>" href="<?= $baseUrl ?>/volunteer/my-registrations">
                     <i class="bi bi-card-checklist text-primary"></i> <span>Quản lý đơn đăng ký</span>
                 </a>
-                <a class="nav-link <?= str_ends_with($currentUri, '/availability') ? 'active' : '' ?>" href="<?= $baseUrl ?>/volunteer/availability">
-                    <i class="bi bi-clock-history text-secondary"></i> <span>Khai báo lịch rảnh</span>
-                </a>
                 <a class="nav-link <?= str_ends_with($currentUri, '/replacement') ? 'active' : '' ?>" href="<?= $baseUrl ?>/volunteer/replacement">
                     <i class="bi bi-arrow-left-right text-warning"></i> <span>Báo vắng & Thay người</span>
                 </a>
@@ -132,7 +129,10 @@ $userInitials = mb_strtoupper(mb_substr($userName ?: 'T', 0, 1));
                     <i class="bi bi-patch-check-fill text-primary"></i> <span>Kỹ năng của tôi</span>
                 </a>
                 <a class="nav-link <?= str_ends_with($currentUri, '/history') ? 'active' : '' ?>" href="<?= $baseUrl ?>/volunteer/history">
-                    <i class="bi bi-trophy-fill text-warning"></i> <span>Lịch sử cống hiến</span>
+                    <i class="bi bi-calendar2-check-fill text-warning"></i> <span>Lịch sử ca trực</span>
+                </a>
+                <a class="nav-link <?= str_contains($currentUri, '/points') ? 'active' : '' ?>" href="<?= $baseUrl ?>/volunteer/points">
+                    <i class="bi bi-award-fill text-success"></i> <span>Điểm cống hiến & Thi đua</span>
                 </a>
                 <a class="nav-link volunteer-notifications-link <?= str_ends_with($currentUri, '/notifications') ? 'active' : '' ?>" href="<?= $baseUrl ?>/volunteer/notifications">
                     <i class="bi bi-bell-fill text-danger"></i> <span>Thông báo</span>

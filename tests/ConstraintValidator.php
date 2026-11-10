@@ -16,11 +16,11 @@ class ConstraintValidator
      * @param array $shifts Danh sách ca trực kèm kỹ năng bắt buộc và giới hạn min/max
      * @param array $volunteers Danh sách tình nguyện viên kèm kỹ năng
      * @param array $assignments Mảng phân công từ đăng ký đã duyệt: shift_id => [user_id, ...]
-     * @param array $replacementAssignments Phân công người thay thế; các user này cần rảnh toàn ca
+     * @param array $replacementAssignments Phân công người thay thế
      * @return array [
      *   'is_valid' => bool,
      *   'violations' => array of [
-     *      'type' => 'skill'|'availability'|'overlap'|'capacity',
+     *      'type' => 'skill'|'overlap'|'capacity',
      *      'shift_id' => int,
      *      'user_id' => int|null,
      *      'message' => string
@@ -54,9 +54,7 @@ class ConstraintValidator
 
         $userAssignedShifts = []; // user_id => [shift, ...]
 
-        $replacementUsersByShift = [];
         foreach ($replacementAssignments as $shiftId => $userIds) {
-            $replacementUsersByShift[(int)$shiftId] = array_fill_keys(array_map('intval', $userIds), true);
             $assignments[$shiftId] = array_merge($assignments[$shiftId] ?? [], $userIds);
         }
 
@@ -123,28 +121,6 @@ class ConstraintValidator
                             'shift_id' => $shiftId,
                             'user_id'  => $uid,
                             'message'  => "TNV {$vol['full_name']} (ID $uid) thiếu kỹ năng bắt buộc ID $ms trong ca '{$shift['name']}'."
-                        ];
-                    }
-                }
-
-                if (isset($replacementUsersByShift[$shiftId][$uid])) {
-                    $isAvailable = false;
-                    foreach ($vol['availability'] ?? [] as $period) {
-                        if (
-                            ($period['date'] ?? null) === $shift['date']
-                            && ($period['time_start'] ?? '') <= $shift['time_start']
-                            && ($period['time_end'] ?? '') >= $shift['time_end']
-                        ) {
-                            $isAvailable = true;
-                            break;
-                        }
-                    }
-                    if (!$isAvailable) {
-                        $violations[] = [
-                            'type' => 'availability',
-                            'shift_id' => $shiftId,
-                            'user_id' => $uid,
-                            'message' => "TNV {$vol['full_name']} (ID $uid) không khai báo rảnh toàn bộ ca thay thế '{$shift['name']}'."
                         ];
                     }
                 }

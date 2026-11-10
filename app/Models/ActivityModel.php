@@ -348,14 +348,19 @@ class ActivityModel extends BaseModel
                     reg.status as my_reg_status,
                     (SELECT asgn.status FROM assignments asgn
                      WHERE asgn.shift_id = s.id AND asgn.user_id = ? AND asgn.status NOT IN ('removed','replaced')
-                     ORDER BY asgn.assigned_at DESC LIMIT 1) as my_assignment_status
+                     ORDER BY asgn.assigned_at DESC LIMIT 1) as my_assignment_status,
+                    (SELECT att.status
+                     FROM attendance att
+                     JOIN assignments asgn ON asgn.id = att.assignment_id
+                     WHERE asgn.shift_id = s.id AND asgn.user_id = ?
+                     ORDER BY asgn.assigned_at DESC LIMIT 1) as my_attendance_status
              FROM shifts s
              JOIN activities act ON s.activity_id = act.id
              LEFT JOIN registrations reg ON reg.shift_id = s.id AND reg.user_id = ?
              WHERE s.activity_id = ? AND s.status != 'cancelled'
              ORDER BY s.date ASC, s.time_start ASC $limitSql"
         );
-        $stmt->execute([$userId, $userId, $activityId]);
+        $stmt->execute([$userId, $userId, $userId, $activityId]);
         $data = $stmt->fetchAll();
         return [
             'data' => $data,

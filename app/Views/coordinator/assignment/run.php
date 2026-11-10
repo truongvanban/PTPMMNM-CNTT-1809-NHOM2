@@ -7,7 +7,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         <div class="card border-0 shadow-sm rounded-4 p-4">
             <h1 class="h4 fw-bold mb-1"><i class="bi bi-cpu text-primary me-2"></i>Chạy Thuật Toán Phân Công</h1>
             <p class="text-muted small mb-4">
-                Hệ thống đề xuất phân công đơn đã duyệt, đồng thời kiểm tra <strong>kỹ năng bắt buộc</strong>, <strong>trùng giờ</strong> và <strong>giới hạn ca</strong>. Tình nguyện viên đã đăng ký ca không cần khai báo lịch rảnh, nhưng vẫn cần xác nhận sau khi được phân công.
+                Hệ thống đề xuất phân công đơn đã duyệt, đồng thời kiểm tra <strong>kỹ năng bắt buộc</strong>, <strong>trùng giờ</strong> và <strong>giới hạn ca</strong>. Tình nguyện viên vẫn cần xác nhận sau khi được phân công.
             </p>
 
             <div class="alert alert-info d-flex align-items-start gap-2 small" role="note">

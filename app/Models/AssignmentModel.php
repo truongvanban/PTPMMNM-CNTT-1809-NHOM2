@@ -244,8 +244,11 @@ class AssignmentModel extends BaseModel
             return ['success' => false, 'message' => 'Ca trực không tồn tại.'];
         }
 
+        $ownsTransaction = !$this->db->inTransaction();
         try {
-            $this->db->beginTransaction();
+            if ($ownsTransaction) {
+                $this->db->beginTransaction();
+            }
 
             $shiftLockStmt = $this->db->prepare(
                 "SELECT s.id, s.status AS shift_status, a.status AS activity_status
@@ -261,7 +264,9 @@ class AssignmentModel extends BaseModel
                 || $lockedShift['shift_status'] !== 'open'
                 || !in_array($lockedShift['activity_status'], ['open', 'ongoing'], true)
             ) {
-                $this->db->rollBack();
+                if ($ownsTransaction) {
+                    $this->db->rollBack();
+                }
                 return ['success' => false, 'message' => 'Không thể thêm người vào ca hoặc hoạt động đã đóng.'];
             }
 
@@ -276,7 +281,9 @@ class AssignmentModel extends BaseModel
             );
             $volunteerStmt->execute([$userId]);
             if (!$volunteerStmt->fetchColumn()) {
-                $this->db->rollBack();
+                if ($ownsTransaction) {
+                    $this->db->rollBack();
+                }
                 return ['success' => false, 'message' => 'Tài khoản không phải tình nguyện viên đang hoạt động.'];
             }
 
@@ -288,7 +295,9 @@ class AssignmentModel extends BaseModel
             );
             $registrationStmt->execute([$shiftId, $userId]);
             if (!$registrationStmt->fetchColumn()) {
-                $this->db->rollBack();
+                if ($ownsTransaction) {
+                    $this->db->rollBack();
+                }
                 return ['success' => false, 'message' => 'Chỉ có thể phân công tình nguyện viên đã đăng ký và được duyệt ca này.'];
             }
 
@@ -302,7 +311,9 @@ class AssignmentModel extends BaseModel
             $currentAssigned = (int)$countStmt->fetchColumn();
 
             if ($currentAssigned >= (int)$shift['max_volunteers']) {
-                $this->db->rollBack();
+                if ($ownsTransaction) {
+                    $this->db->rollBack();
+                }
                 return ['success' => false, 'message' => "Ca trực đã đạt số lượng tối đa ({$shift['max_volunteers']} người)."];
             }
 
@@ -314,7 +325,9 @@ class AssignmentModel extends BaseModel
             $existing = $existStmt->fetch();
 
             if ($existing && !in_array($existing['status'], ['removed', 'replaced'], true)) {
-                $this->db->rollBack();
+                if ($ownsTransaction) {
+                    $this->db->rollBack();
+                }
                 return ['success' => false, 'message' => 'Tình nguyện viên này đã được phân công vào ca.'];
             }
 
@@ -328,7 +341,9 @@ class AssignmentModel extends BaseModel
 
             foreach ($reqSkills as $rs) {
                 if ($rs['is_mandatory'] && !in_array((int)$rs['skill_id'], array_map('intval', $userSkillIds), true)) {
-                    $this->db->rollBack();
+                    if ($ownsTransaction) {
+                        $this->db->rollBack();
+                    }
                     return ['success' => false, 'message' => "Tình nguyện viên thiếu kỹ năng bắt buộc: {$rs['name']}."];
                 }
             }
@@ -336,7 +351,9 @@ class AssignmentModel extends BaseModel
             // Đơn đăng ký đã duyệt xác nhận người đăng ký có thể tham gia ca này.
             // Vẫn kiểm tra các phân công hiện có để ngăn trùng lịch.
             if ($shiftModel->hasTimeConflict($userId, $shiftId)) {
-                $this->db->rollBack();
+                if ($ownsTransaction) {
+                    $this->db->rollBack();
+                }
                 return ['success' => false, 'message' => 'Tình nguyện viên bị trùng lịch với một ca trực khác cùng thời điểm.'];
             }
 
@@ -381,11 +398,13 @@ class AssignmentModel extends BaseModel
                 "Bạn vừa được phân công vào ca trực '{$shift['name']}' ngày {$shift['date']}. Vui lòng kiểm tra và xác nhận tham gia."
             ]);
 
-            $this->db->commit();
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
             return ['success' => true, 'message' => 'Đã thêm phân công tình nguyện viên thành công!'];
 
         } catch (\Throwable $e) {
-            if ($this->db->inTransaction()) {
+            if ($ownsTransaction && $this->db->inTransaction()) {
                 $this->db->rollBack();
             }
             error_log('[ManualAdd Error] ' . $e->getMessage());
@@ -512,6 +531,12 @@ class AssignmentModel extends BaseModel
                 return ['success' => false, 'message' => 'Phân công không tồn tại hoặc đã bị gỡ.'];
             }
 
+            $this->db->prepare(
+                "UPDATE registrations
+                 SET status = 'cancelled', updated_at = NOW()
+                 WHERE user_id = ? AND shift_id = ? AND status = 'approved'"
+            )->execute([(int)$assignment['user_id'], (int)$assignment['shift_id']]);
+
             // Ghi lịch sử
             $this->db->prepare(
                 "INSERT INTO assignment_history (assignment_id, changed_by, action, old_data, note)
@@ -528,11 +553,11 @@ class AssignmentModel extends BaseModel
                 "INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, 'assignment', ?, ?, '/volunteer/schedule')"
             )->execute([
                 (int)$assignment['user_id'],
-                'Thay đổi phân công ca trực',
-                "Điều phối viên đã gỡ bạn khỏi ca '{$assignment['shift_name']}' thuộc hoạt động '{$assignment['activity_title']}' vào ngày "
+                'Phân công ca trực đã bị hủy',
+                "Điều phối viên đã hủy phân công của bạn cho ca '{$assignment['shift_name']}' thuộc hoạt động '{$assignment['activity_title']}' vào ngày "
                     . date('d/m/Y', strtotime($assignment['shift_date'])) . ' ('
                     . substr($assignment['time_start'], 0, 5) . ' - '
-                    . substr($assignment['time_end'], 0, 5) . ').'
+                    . substr($assignment['time_end'], 0, 5) . '). Đơn đăng ký ca này đã được hủy. Bạn có thể đăng ký lại nếu ca vẫn mở.'
                     . ($note !== '' ? " Lý do: {$note}" : '')
             ]);
 

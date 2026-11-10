@@ -57,6 +57,9 @@ $userName = Session::userName();
                 <a class="nav-link <?= str_contains($currentUri, '/admin/activities') ? 'active' : '' ?>" href="<?= $baseUrl ?>/admin/activities">
                     <i class="bi bi-calendar3"></i> Quản lý toàn bộ hoạt động
                 </a>
+                <a class="nav-link <?= str_contains($currentUri, '/admin/points') ? 'active' : '' ?>" href="<?= $baseUrl ?>/admin/points">
+                    <i class="bi bi-award"></i> Cấu hình điểm & Thi đua
+                </a>
             </nav>
 
             <div class="text-muted small text-uppercase fw-bold px-3 mt-4 mb-2">Báo cáo & Thuật toán</div>

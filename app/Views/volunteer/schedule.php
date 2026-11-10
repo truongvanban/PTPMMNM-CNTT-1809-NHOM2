@@ -24,7 +24,7 @@ foreach ($assignments as $assignment) {
         if ($assignment['assignment_status'] !== 'removed') {
             $monthAssignmentCount++;
             $monthDates[$date] = true;
-            if (($assignment['attendance_status'] ?? '') === 'confirmed') {
+            if (in_array(($assignment['attendance_status'] ?? ''), ['confirmed', 'completed'], true)) {
                 $monthConfirmedCount++;
             }
         }
@@ -118,6 +118,7 @@ $weekdays = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', '
                             $replacementStatus = $asgn['replacement_status'] ?? '';
                             $attendanceStatus = $asgn['attendance_status'] ?? '';
                             $isAssignmentActive = in_array($asgn['assignment_status'], ['assigned', 'confirmed'], true);
+                            $canRespondToAssignment = $isAssignmentActive && $attendanceStatus !== 'completed';
                             ?>
                             <article class="volunteer-calendar-event <?= $asgn['assignment_status'] === 'removed' ? 'is-removed' : '' ?>">
                                 <div class="volunteer-calendar-event-time"><i class="bi bi-clock me-1"></i><?= substr($asgn['time_start'], 0, 5) ?>–<?= substr($asgn['time_end'], 0, 5) ?></div>
@@ -140,6 +141,8 @@ $weekdays = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', '
                                             <?= nl2br(htmlspecialchars($asgn['replacement_coordinator_note'], ENT_QUOTES, 'UTF-8')) ?>
                                         </div>
                                     <?php endif; ?>
+                                <?php elseif ($attendanceStatus === 'completed'): ?>
+                                    <span class="badge bg-primary-subtle text-primary mt-2">Đã hoàn thành</span>
                                 <?php elseif ($attendanceStatus === 'confirmed'): ?>
                                     <span class="badge bg-success-soft text-success mt-2">Đã xác nhận</span>
                                 <?php elseif ($isAssignmentActive): ?>
@@ -164,7 +167,7 @@ $weekdays = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', '
                                     <?php if ($isAssignmentActive): ?>
                                         <a href="<?= $baseUrl ?>/volunteer/replacement" class="d-inline-block small mt-1">Gửi lại báo vắng</a>
                                     <?php endif; ?>
-                                <?php elseif ($replacementStatus !== 'pending' && $attendanceStatus !== 'confirmed' && empty($asgn['replacement_request_id']) && $isAssignmentActive): ?>
+                                <?php elseif ($replacementStatus !== 'pending' && $attendanceStatus !== 'confirmed' && empty($asgn['replacement_request_id']) && $canRespondToAssignment): ?>
                                     <div class="d-flex flex-wrap gap-1 mt-2">
                                         <form action="<?= $baseUrl ?>/volunteer/confirm" method="POST" class="m-0">
                                             <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
@@ -175,7 +178,7 @@ $weekdays = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', '
                                         </form>
                                         <a href="<?= $baseUrl ?>/volunteer/replacement" class="btn btn-outline-danger btn-sm py-1 px-2">Báo vắng</a>
                                     </div>
-                                <?php elseif ($attendanceStatus === 'confirmed' && $replacementStatus !== 'pending' && $replacementStatus !== 'approved'): ?>
+                                <?php elseif ($canRespondToAssignment && $attendanceStatus === 'confirmed' && $replacementStatus !== 'pending' && $replacementStatus !== 'approved'): ?>
                                     <a href="<?= $baseUrl ?>/volunteer/replacement" class="d-inline-block small mt-2">Báo bận đột xuất</a>
                                 <?php endif; ?>
                                 <?php if (!empty($asgn['coordinator_name'])): ?>

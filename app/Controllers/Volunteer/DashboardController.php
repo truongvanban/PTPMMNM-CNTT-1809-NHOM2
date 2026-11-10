@@ -13,6 +13,7 @@ use App\Core\Session;
 use App\Models\ActivityModel;
 use App\Models\AssignmentModel;
 use App\Models\NotificationModel;
+use App\Models\PointsModel;
 use App\Models\RegistrationModel;
 use App\Models\ShiftModel;
 use App\Models\SkillModel;
@@ -43,56 +44,11 @@ class DashboardController extends Controller
         $today = date('Y-m-d');
 
         foreach ($myAssignments as $asgn) {
-            if ($asgn['attendance_status'] === 'confirmed') $confirmedCount++;
+            if (in_array($asgn['attendance_status'], ['confirmed', 'completed'], true)) $confirmedCount++;
             if ($asgn['shift_date'] >= $today) $upcomingCount++;
         }
 
-        // Tính điểm cống hiến & Huy hiệu (Gamification)
-        $impactPoints = ($confirmedCount * 100) + (count($mySkills) * 50) + (count($myRegistrations) * 20);
-        $level = 1;
-        $levelName = 'Tân Binh Nhiệt Huyết';
-        if ($impactPoints >= 500) {
-            $level = 3;
-            $levelName = 'Thủ Lĩnh Cộng Đồng';
-        } elseif ($impactPoints >= 200) {
-            $level = 2;
-            $levelName = 'Tình Nguyện Viên Năng Động';
-        }
-
-        $badges = [
-            [
-                'id' => 'starter',
-                'name' => 'Nhập Cuộc',
-                'icon' => 'bi-flag-fill',
-                'color' => 'success',
-                'unlocked' => count($mySkills) > 0 || count($myRegistrations) > 0,
-                'desc' => 'Đã cập nhật kỹ năng hoặc đăng ký ca đầu tiên'
-            ],
-            [
-                'id' => 'committed',
-                'name' => 'Nhiệt Huyết',
-                'icon' => 'bi-fire',
-                'color' => 'danger',
-                'unlocked' => count($myRegistrations) >= 2,
-                'desc' => 'Đã đăng ký tham gia từ 2 ca trực trở lên'
-            ],
-            [
-                'id' => 'achiever',
-                'name' => 'Cống Hiến Vàng',
-                'icon' => 'bi-trophy-fill',
-                'color' => 'warning',
-                'unlocked' => $confirmedCount >= 1,
-                'desc' => 'Đã hoàn thành và xác nhận tham gia ca trực'
-            ],
-            [
-                'id' => 'specialist',
-                'name' => 'Chuyên Gia Kỹ Năng',
-                'icon' => 'bi-patch-check-fill',
-                'color' => 'primary',
-                'unlocked' => count($mySkills) >= 2,
-                'desc' => 'Sở hữu từ 2 kỹ năng chuyên môn trở lên'
-            ],
-        ];
+        $pointsSummary = (new PointsModel())->getSummary($userId);
 
         $this->render('volunteer.dashboard', [
             'title'              => 'Bảng Điều Khiển Tình Nguyện Viên | VolunteerHub',
@@ -105,10 +61,7 @@ class DashboardController extends Controller
             'confirmedCount'     => $confirmedCount,
             'upcomingCount'      => $upcomingCount,
             'featuredActivities' => $featuredActivities['data'] ?? [],
-            'impactPoints'       => $impactPoints,
-            'level'              => $level,
-            'levelName'          => $levelName,
-            'badges'             => $badges,
+            'pointsSummary'      => $pointsSummary,
             'success'            => Session::getFlash('success'),
             'error'              => Session::getFlash('error'),
         ]);

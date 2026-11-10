@@ -13,6 +13,7 @@ use App\Core\Session;
 use App\Models\ActivityModel;
 use App\Models\AssignmentModel;
 use App\Models\Database;
+use App\Models\PointsModel;
 use App\Models\ShiftModel;
 use App\Services\AssignmentService;
 
@@ -259,5 +260,52 @@ class AssignmentController extends Controller
         } else {
             $this->redirect("/coordinator/assignment/manual/{$shiftId}", ['error' => $res['message']]);
         }
+    }
+
+    public function completeAssignment(): void
+    {
+        $this->verifyCsrf();
+        $coordinatorId = (int)Session::userId();
+        $assignmentId = (int)$this->post('assignment_id', 0);
+        $assignment = $assignmentId > 0 ? $this->assignmentModel->findById($assignmentId) : null;
+        $shiftId = (int)($assignment['shift_id'] ?? 0);
+        if ($shiftId <= 0) {
+            $this->redirect('/coordinator/activities', ['error' => 'Không tìm thấy phân công.']);
+            return;
+        }
+
+        $rawHours = $this->post('hours_worked', '');
+        $hours = is_numeric($rawHours) ? (float)$rawHours : 0;
+        $onTime = $this->post('on_time', '') === '1';
+        $result = (new PointsModel())->completeAssignment(
+            $assignmentId,
+            $coordinatorId,
+            $hours,
+            $onTime,
+            Session::hasRole('admin')
+        );
+        $this->redirect(
+            "/coordinator/assignment/manual/{$shiftId}",
+            [$result['success'] ? 'success' : 'error' => $result['message']]
+        );
+    }
+
+    public function markNoShow(): void
+    {
+        $this->verifyCsrf();
+        $coordinatorId = (int)Session::userId();
+        $assignmentId = (int)$this->post('assignment_id', 0);
+        $assignment = $assignmentId > 0 ? $this->assignmentModel->findById($assignmentId) : null;
+        $shiftId = (int)($assignment['shift_id'] ?? 0);
+        if ($shiftId <= 0) {
+            $this->redirect('/coordinator/activities', ['error' => 'Không tìm thấy phân công.']);
+            return;
+        }
+
+        $result = (new PointsModel())->markNoShow($assignmentId, $coordinatorId, Session::hasRole('admin'));
+        $this->redirect(
+            "/coordinator/assignment/manual/{$shiftId}",
+            [$result['success'] ? 'success' : 'error' => $result['message']]
+        );
     }
 }

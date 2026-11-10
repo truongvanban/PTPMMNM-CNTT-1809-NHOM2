@@ -12,6 +12,7 @@ use App\Core\Controller;
 use App\Core\Session;
 use App\Models\ActivityModel;
 use App\Models\Database;
+use App\Models\PointsModel;
 use App\Models\ShiftModel;
 use App\Services\AssignmentService;
 
@@ -31,6 +32,7 @@ class PublicController extends Controller
         $this->render('public.home', [
             'title'      => 'VolunteerHub - Tổ Chức Tình Nguyện',
             'activities' => $activities['data'],
+            'monthlyLeaders' => (new PointsModel())->getRecentMonthlyTopThree(),
             'error'      => Session::getFlash('error'),
             'success'    => Session::getFlash('success'),
         ]);
