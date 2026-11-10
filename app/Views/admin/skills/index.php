@@ -66,12 +66,59 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-center">
-                                    <form action="<?= $baseUrl ?>/admin/skills/<?= $sk['id'] ?>/delete" method="POST" class="d-inline">
-                                        <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Bạn có chắc chắn muốn xóa kỹ năng này?">
-                                            <i class="bi bi-trash"></i>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editSkillModal<?= $sk['id'] ?>" title="Chỉnh sửa kỹ năng">
+                                            <i class="bi bi-pencil"></i> Sửa
                                         </button>
-                                    </form>
+                                        <form action="<?= $baseUrl ?>/admin/skills/<?= $sk['id'] ?>/delete" method="POST" class="d-inline">
+                                            <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
+                                            <button type="submit" class="btn btn-outline-danger" data-confirm="Bạn có chắc chắn muốn xóa kỹ năng này?">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    <!-- Modal Sửa Kỹ Năng -->
+                                    <div class="modal fade text-start" id="editSkillModal<?= $sk['id'] ?>" tabindex="-1" aria-labelledby="editSkillLabel<?= $sk['id'] ?>" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content rounded-4 border-0 shadow">
+                                                <form action="<?= $baseUrl ?>/admin/skills/<?= $sk['id'] ?>/edit" method="POST">
+                                                    <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
+                                                    <div class="modal-header border-0 pb-0">
+                                                        <h3 class="modal-title h5 fw-bold" id="editSkillLabel<?= $sk['id'] ?>">
+                                                            <i class="bi bi-pencil-square text-primary me-2"></i>Chỉnh sửa kỹ năng
+                                                        </h3>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                                                    </div>
+                                                    <div class="modal-body pt-3">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">Tên kỹ năng <span class="text-danger">*</span></label>
+                                                            <input type="text" class="form-control" name="name" value="<?= htmlspecialchars($sk['name']) ?>" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">Nhóm danh mục</label>
+                                                            <input type="text" class="form-control" name="category" value="<?= htmlspecialchars($sk['category'] ?? '') ?>">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">Mô tả kỹ năng</label>
+                                                            <textarea class="form-control" name="description" rows="3"><?= htmlspecialchars($sk['description'] ?? '') ?></textarea>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">Trạng thái áp dụng</label>
+                                                            <select class="form-select" name="is_active">
+                                                                <option value="1" <?= $sk['is_active'] ? 'selected' : '' ?>>Đang áp dụng (Hiển thị)</option>
+                                                                <option value="0" <?= !$sk['is_active'] ? 'selected' : '' ?>>Tạm ẩn (Không áp dụng)</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer border-0 pt-0">
+                                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Lưu thay đổi</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

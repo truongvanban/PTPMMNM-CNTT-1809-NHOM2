@@ -7,8 +7,16 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         <div class="card border-0 shadow-sm rounded-4 p-4">
             <h1 class="h4 fw-bold mb-1"><i class="bi bi-cpu text-primary me-2"></i>Chạy Thuật Toán Phân Công</h1>
             <p class="text-muted small mb-4">
-                Hệ thống tự động kiểm tra đồng thời 3 điều kiện: <strong>Kỹ năng bắt buộc</strong>, <strong>Lịch rảnh & Không trùng giờ</strong>, và <strong>Giới hạn ca</strong>.
+                Hệ thống đề xuất phân công đơn đã duyệt, đồng thời kiểm tra <strong>kỹ năng bắt buộc</strong>, <strong>trùng giờ</strong> và <strong>giới hạn ca</strong>. Tình nguyện viên đã đăng ký ca không cần khai báo lịch rảnh, nhưng vẫn cần xác nhận sau khi được phân công.
             </p>
+
+            <div class="alert alert-info d-flex align-items-start gap-2 small" role="note">
+                <i class="bi bi-info-circle-fill mt-1"></i>
+                <div>
+                    Khi duyệt đơn đăng ký một ca cụ thể, hệ thống tự phân công nếu ca còn chỗ và tình nguyện viên đáp ứng điều kiện. Dùng thuật toán để đề xuất phân công hàng loạt hoặc sắp xếp các trường hợp còn thiếu; tình nguyện viên vẫn phải xác nhận sau khi được phân công.
+                    <a href="<?= $baseUrl ?>/coordinator/registrations?status=pending" class="alert-link d-block mt-1">Xem các đơn đang chờ duyệt</a>
+                </div>
+            </div>
 
             <form action="<?= $baseUrl ?>/coordinator/assignment/run" method="POST">
                 <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
@@ -67,7 +75,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
             <h2 class="h5 fw-bold mb-3"><i class="bi bi-shield-check text-success me-2"></i>Ràng Buộc Cứng Được Kiểm Tra</h2>
             <ul class="list-unstyled small mb-0">
                 <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Kỹ năng:</strong> Không phân công người thiếu kỹ năng bắt buộc của ca.</li>
-                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Lịch rảnh:</strong> Chỉ phân công người có lịch rảnh bao trùm toàn bộ thời gian ca.</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Đăng ký:</strong> Chỉ phân công người có đơn đã được duyệt; đơn duyệt xác nhận họ có thể tham gia ca.</li>
                 <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Xung đột lịch:</strong> Tuyệt đối không phân công một người vào 2 ca bị chồng lấn giờ.</li>
                 <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Giới hạn:</strong> Không vượt quá số người tối đa cho phép của ca.</li>
                 <li class="mb-0"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Tính trung thực:</strong> Không tự tạo tình nguyện viên giả để lấp ca thiếu.</li>

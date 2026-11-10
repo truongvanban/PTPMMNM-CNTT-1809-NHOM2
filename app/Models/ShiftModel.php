@@ -11,12 +11,12 @@ class ShiftModel extends BaseModel
 {
     protected string $table = 'shifts';
 
-    public function getByActivity(int $activityId): array
+    public function getByActivity(int $activityId, int $userId = 0): array
     {
-        return $this->getByActivityPage($activityId, 1, 0)['data'];
+        return $this->getByActivityPage($activityId, 1, 0, $userId)['data'];
     }
 
-    public function getByActivityPage(int $activityId, int $page = 1, int $perPage = 15): array
+    public function getByActivityPage(int $activityId, int $page = 1, int $perPage = 15, int $userId = 0): array
     {
         $countStmt = $this->db->prepare("SELECT COUNT(*) FROM shifts WHERE activity_id = ?");
         $countStmt->execute([$activityId]);
@@ -26,21 +26,24 @@ class ShiftModel extends BaseModel
         $offset = ($page - 1) * $perPage;
         $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
         $stmt = $this->db->prepare(
-            "SELECT s.*,
-                    (SELECT COUNT(*) FROM assignments a WHERE a.shift_id = s.id AND a.status NOT IN ('removed','replaced')) as assigned_count,
+            "SELECT s.*, a.status as activity_status, a.registration_deadline,
+                    (SELECT r.id FROM registrations r WHERE r.shift_id = s.id AND r.user_id = ? LIMIT 1) as my_reg_id,
+                    (SELECT r.status FROM registrations r WHERE r.shift_id = s.id AND r.user_id = ? LIMIT 1) as my_reg_status,
+                    (SELECT COUNT(*) FROM assignments a WHERE a.shift_id = s.id AND a.status NOT IN ('removed','replaced','absent')) as assigned_count,
                     (SELECT COUNT(*) FROM registrations r WHERE r.shift_id = s.id AND r.status IN ('pending','approved')) as registered_count,
                     (SELECT COUNT(*) FROM registrations r WHERE r.shift_id = s.id AND r.status = 'pending') as pending_count,
                     GROUP_CONCAT(DISTINCT sk.name ORDER BY sk.name SEPARATOR ', ') as required_skills,
                     GROUP_CONCAT(DISTINCT srs.skill_id ORDER BY srs.skill_id) as required_skill_ids,
                     GROUP_CONCAT(DISTINCT srs.is_mandatory ORDER BY srs.skill_id) as skill_mandatory_flags
              FROM shifts s
+             JOIN activities a ON a.id = s.activity_id
              LEFT JOIN shift_required_skills srs ON s.id = srs.shift_id
              LEFT JOIN skills sk ON srs.skill_id = sk.id
              WHERE s.activity_id = ?
              GROUP BY s.id
              ORDER BY s.date ASC, s.time_start ASC $limitSql"
         );
-        $stmt->execute([$activityId]);
+        $stmt->execute([$userId, $userId, $activityId]);
         return [
             'data' => $stmt->fetchAll(),
             'total' => $total,
@@ -126,13 +129,48 @@ class ShiftModel extends BaseModel
     /**
      * Lấy ca có thể đăng ký (đang mở, chưa đầy, còn trong hạn đăng ký)
      */
-    public function getAvailableForVolunteer(int $userId): array
+    public function getAvailableForVolunteer(
+        int $userId,
+        int $page = 1,
+        int $perPage = 15,
+        int $activityId = 0,
+        int $skillId = 0
+    ): array
     {
+        $filters = '';
+        $filterParams = [];
+        if ($activityId > 0) {
+            $filters .= ' AND a.id = ?';
+            $filterParams[] = $activityId;
+        }
+        if ($skillId > 0) {
+            $filters .= ' AND EXISTS (
+                SELECT 1 FROM shift_required_skills filter_skill
+                WHERE filter_skill.shift_id = s.id AND filter_skill.skill_id = ?
+            )';
+            $filterParams[] = $skillId;
+        }
+
+        $countStmt = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM shifts s
+             JOIN activities a ON s.activity_id = a.id
+             WHERE s.status = 'open'
+               AND a.status IN ('open','ongoing')
+               AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())
+               $filters"
+        );
+        $countStmt->execute($filterParams);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
         $stmt = $this->db->prepare(
             "SELECT s.*, a.title as activity_title, a.description as activity_description,
                     a.location as activity_location,
                     a.registration_deadline,
-                    (SELECT COUNT(*) FROM assignments asgn WHERE asgn.shift_id = s.id AND asgn.status NOT IN ('removed','replaced')) as assigned_count,
+                    (SELECT COUNT(*) FROM assignments asgn WHERE asgn.shift_id = s.id AND asgn.status NOT IN ('removed','replaced','absent')) as assigned_count,
                     (SELECT COUNT(*) FROM registrations r2 WHERE r2.shift_id = s.id AND r2.status IN ('pending','approved')) as registered_count,
                     (SELECT COUNT(*) FROM registrations r2 WHERE r2.shift_id = s.id AND r2.status = 'pending') as pending_count,
                     (SELECT id FROM registrations r3 WHERE r3.shift_id = s.id AND r3.user_id = ? LIMIT 1) as my_reg_id,
@@ -144,11 +182,50 @@ class ShiftModel extends BaseModel
              LEFT JOIN skills sk ON srs.skill_id = sk.id
              WHERE s.status = 'open'
                AND a.status IN ('open','ongoing')
-               AND a.registration_deadline >= NOW()
+               AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())
+               $filters
              GROUP BY s.id
-             ORDER BY s.date ASC, s.time_start ASC"
+             ORDER BY s.date ASC, s.time_start ASC $limitSql"
         );
-        $stmt->execute([$userId, $userId]);
+        $stmt->execute(array_merge([$userId, $userId], $filterParams));
+        $data = $stmt->fetchAll();
+        return [
+            'data' => $data,
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+            'visible_count' => count($data),
+        ];
+    }
+
+    public function getAvailableActivityFilters(): array
+    {
+        $stmt = $this->db->query(
+            "SELECT DISTINCT a.id, a.title
+             FROM activities a
+             JOIN shifts s ON s.activity_id = a.id
+             WHERE s.status = 'open'
+               AND a.status IN ('open','ongoing')
+               AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())
+             ORDER BY a.title ASC"
+        );
+        return $stmt->fetchAll();
+    }
+
+    public function getAvailableRequiredSkillFilters(): array
+    {
+        $stmt = $this->db->query(
+            "SELECT DISTINCT sk.id, sk.name, sk.category
+             FROM skills sk
+             JOIN shift_required_skills required ON required.skill_id = sk.id
+             JOIN shifts s ON s.id = required.shift_id
+             JOIN activities a ON a.id = s.activity_id
+             WHERE s.status = 'open'
+               AND a.status IN ('open','ongoing')
+               AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())
+             ORDER BY sk.category ASC, sk.name ASC"
+        );
         return $stmt->fetchAll();
     }
 

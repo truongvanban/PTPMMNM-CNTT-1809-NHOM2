@@ -39,11 +39,26 @@ class PublicController extends Controller
     public function activities(): void
     {
         $page = max(1, (int)$this->get('page', 1));
-        $result = $this->activityModel->getOpenActivities($page, 9);
+        $categories = $this->activityModel->getOpenActivityCategories();
+        $requestedCategory = $this->get('category', '');
+        $category = is_string($requestedCategory) && in_array($requestedCategory, $categories, true)
+            ? $requestedCategory
+            : '';
+        $requestedSort = $this->get('sort', 'date');
+        $sort = $requestedSort === 'category' ? 'category' : 'date';
+        $result = $this->activityModel->getOpenActivities(
+            $page,
+            $this->getPageSize(10),
+            $category,
+            $sort
+        );
         $this->render('public.activities', [
             'title'      => 'Hoạt Động Tình Nguyện | VolunteerHub',
             'activities' => $result['data'],
             'pagination' => $result,
+            'categories' => $categories,
+            'selectedCategory' => $category,
+            'sort' => $sort,
             'error'      => Session::getFlash('error'),
         ]);
     }
@@ -60,13 +75,17 @@ class PublicController extends Controller
         }
 
         $shiftModel = new ShiftModel();
-        $shifts     = $shiftModel->getByActivity($actId);
         $userId     = Session::userId();
+        $page       = max(1, (int)$this->get('page', 1));
+        $shiftResult = $shiftModel->getByActivityPage($actId, $page, $this->getPageSize(10), (int)($userId ?? 0));
 
         $this->render('public.activity_detail', [
             'title'    => $activity['title'] . ' | VolunteerHub',
             'activity' => $activity,
-            'shifts'   => $shifts,
+            'requiredSkills' => $this->activityModel->getRequiredSkillsForActivity($actId),
+            'attachments' => $this->activityModel->getAttachmentsForActivity($actId),
+            'shifts'   => $shiftResult['data'],
+            'pagination' => $shiftResult,
             'userId'   => $userId,
             'isLogged' => Session::isLoggedIn(),
             'error'    => Session::getFlash('error'),

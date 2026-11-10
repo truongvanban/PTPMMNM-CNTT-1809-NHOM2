@@ -9,62 +9,89 @@ declare(strict_types=1);
 namespace App\Models;
 
 use PDO;
-use Exception;
 
 class ReplacementModel extends BaseModel
 {
     protected string $table = 'replacement_requests';
 
+    public static function isAvailableForShift(array $availability, string $date, string $timeStart, string $timeEnd): bool
+    {
+        foreach ($availability as $period) {
+            if (
+                ($period['date'] ?? null) === $date
+                && ($period['time_start'] ?? '') <= $timeStart
+                && ($period['time_end'] ?? '') >= $timeEnd
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function createRequest(int $assignmentId, int $requesterId, string $reason): array
     {
-        // 1. Kiểm tra quyền sở hữu phân công
-        $stmt = $this->db->prepare(
-            "SELECT a.*, s.name as shift_name, s.date as shift_date, act.coordinator_id
-             FROM assignments a
-             JOIN shifts s ON a.shift_id = s.id
-             JOIN activities act ON s.activity_id = act.id
-             WHERE a.id = ? AND a.user_id = ? LIMIT 1"
-        );
-        $stmt->execute([$assignmentId, $requesterId]);
-        $assignment = $stmt->fetch();
+        try {
+            $this->db->beginTransaction();
+            $stmt = $this->db->prepare(
+                "SELECT a.*, s.name AS shift_name, s.date AS shift_date, s.status AS shift_status,
+                        act.coordinator_id, act.status AS activity_status
+                 FROM assignments a
+                 JOIN shifts s ON a.shift_id = s.id
+                 JOIN activities act ON s.activity_id = act.id
+                 WHERE a.id = ? AND a.user_id = ?
+                 FOR UPDATE"
+            );
+            $stmt->execute([$assignmentId, $requesterId]);
+            $assignment = $stmt->fetch();
 
-        if (!$assignment) {
-            return ['success' => false, 'message' => 'Phân công không tồn tại hoặc không thuộc quyền của bạn.'];
+            if (!$assignment) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Phân công không tồn tại hoặc không thuộc quyền của bạn.'];
+            }
+            if (
+                !in_array($assignment['status'], ['assigned', 'confirmed'], true)
+                || $assignment['shift_status'] === 'cancelled'
+                || in_array($assignment['activity_status'], ['cancelled', 'completed'], true)
+            ) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Phân công này đã bị hủy hoặc không còn có thể báo vắng.'];
+            }
+
+            $checkStmt = $this->db->prepare(
+                "SELECT id FROM replacement_requests WHERE assignment_id = ? AND status = 'pending' LIMIT 1 FOR UPDATE"
+            );
+            $checkStmt->execute([$assignmentId]);
+            if ($checkStmt->fetchColumn()) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Yêu cầu báo vắng cho ca này đang được xử lý.'];
+            }
+
+            $this->db->prepare(
+                "INSERT INTO replacement_requests (assignment_id, requester_id, reason, status)
+                 VALUES (?, ?, ?, 'pending')"
+            )->execute([$assignmentId, $requesterId, $reason]);
+
+            $this->db->prepare("UPDATE attendance SET note = ? WHERE assignment_id = ?")
+                ->execute(["Đang gửi yêu cầu báo vắng: $reason", $assignmentId]);
+
+            $this->db->prepare(
+                "INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, 'replacement', ?, ?, '/coordinator/replacement')"
+            )->execute([
+                $assignment['coordinator_id'],
+                'Yêu cầu báo vắng mới từ tình nguyện viên',
+                "Tình nguyện viên đã báo vắng ca '{$assignment['shift_name']}' ngày {$assignment['shift_date']}. Lý do: $reason"
+            ]);
+
+            $this->db->commit();
+            return ['success' => true, 'message' => 'Yêu cầu báo vắng đã được gửi tới Điều phối viên.'];
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log('[ReplacementModel] Không thể tạo yêu cầu báo vắng: ' . $e->getMessage());
+            return ['success' => false, 'message' => 'Không thể gửi yêu cầu báo vắng. Vui lòng thử lại.'];
         }
-
-        if (in_array($assignment['status'], ['absent', 'replaced', 'removed'], true)) {
-            return ['success' => false, 'message' => 'Phân công này đã bị hủy hoặc đã xử lý vắng mặt.'];
-        }
-
-        // 2. Kiểm tra xem đã có yêu cầu pending nào chưa
-        $checkStmt = $this->db->prepare(
-            "SELECT id FROM replacement_requests WHERE assignment_id = ? AND status = 'pending' LIMIT 1"
-        );
-        $checkStmt->execute([$assignmentId]);
-        if ($checkStmt->fetch()) {
-            return ['success' => false, 'message' => 'Yêu cầu báo vắng cho ca này đang được xử lý.'];
-        }
-
-        // 3. Tạo yêu cầu
-        $this->db->prepare(
-            "INSERT INTO replacement_requests (assignment_id, requester_id, reason, status)
-             VALUES (?, ?, ?, 'pending')"
-        )->execute([$assignmentId, $requesterId, $reason]);
-
-        // Cập nhật trạng thái attendance thành absent tạm thời hoặc ghi chú
-        $this->db->prepare("UPDATE attendance SET note = ? WHERE assignment_id = ?")
-                 ->execute(["Đang gửi yêu cầu báo vắng: $reason", $assignmentId]);
-
-        // Thông báo đến Điều phối viên
-        $this->db->prepare(
-            "INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, 'replacement', ?, ?, '/coordinator/replacement')"
-        )->execute([
-            $assignment['coordinator_id'],
-            'Yêu cầu báo vắng mới từ tình nguyện viên',
-            "Tình nguyện viên đã báo vắng ca '{$assignment['shift_name']}' ngày {$assignment['shift_date']}. Lý do: $reason"
-        ]);
-
-        return ['success' => true, 'message' => 'Yêu cầu báo vắng đã được gửi tới Điều phối viên.'];
     }
 
     public function getPendingForCoordinator(int $coordinatorId): array
@@ -157,6 +184,38 @@ class ReplacementModel extends BaseModel
         return $stmt->fetchAll();
     }
 
+    public function getByUserPage(int $userId, int $page = 1, int $perPage = 15): array
+    {
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM replacement_requests WHERE requester_id = ?");
+        $countStmt->execute([$userId]);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
+        $stmt = $this->db->prepare(
+            "SELECT rr.*, s.name as shift_name, s.date as shift_date, s.time_start, s.time_end,
+                    act.title as activity_title, repl.full_name as replacement_name
+             FROM replacement_requests rr
+             JOIN assignments a ON rr.assignment_id = a.id
+             JOIN shifts s ON a.shift_id = s.id
+             JOIN activities act ON s.activity_id = act.id
+             LEFT JOIN users repl ON rr.replacement_id = repl.id
+             WHERE rr.requester_id = ?
+             ORDER BY rr.created_at DESC $limitSql"
+        );
+        $stmt->execute([$userId]);
+        $data = $stmt->fetchAll();
+        return [
+            'data' => $data,
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+            'visible_count' => count($data),
+        ];
+    }
+
     public function findWithDetails(int $requestId): ?array
     {
         $stmt = $this->db->prepare(
@@ -183,7 +242,9 @@ class ReplacementModel extends BaseModel
     {
         $shiftModel = new ShiftModel();
         $shift = $shiftModel->findWithDetails($shiftId);
-        if (!$shift) return [];
+        if (!$shift || $shift['status'] === 'cancelled' || $shift['activity_status'] === 'cancelled') {
+            return [];
+        }
 
         $reqSkills = $shiftModel->getRequiredSkills($shiftId);
         $mandatorySkillIds = [];
@@ -238,13 +299,18 @@ class ReplacementModel extends BaseModel
 
             // 4. Kiểm tra lịch rảnh (availability)
             $availStmt = $this->db->prepare(
-                "SELECT id FROM availability
-                 WHERE user_id = ? AND date = ?
-                   AND time_start <= ? AND time_end >= ?
-                 LIMIT 1"
+                "SELECT date, time_start, time_end FROM availability WHERE user_id = ? AND date = ?"
             );
-            $availStmt->execute([$uid, $shift['date'], $shift['time_start'], $shift['time_end']]);
-            $isAvailable = (bool)$availStmt->fetch();
+            $availStmt->execute([$uid, $shift['date']]);
+            $isAvailable = self::isAvailableForShift(
+                $availStmt->fetchAll(),
+                $shift['date'],
+                $shift['time_start'],
+                $shift['time_end']
+            );
+            if (!$isAvailable) {
+                continue;
+            }
 
             $vol['is_available'] = $isAvailable;
             $eligible[] = $vol;
@@ -274,12 +340,50 @@ class ReplacementModel extends BaseModel
             return ['success' => false, 'message' => 'Yêu cầu này không thuộc hoạt động của bạn.'];
         }
 
-        $shiftId = (int)$req['shift_id'];
-        $assignmentId = (int)$req['assignment_id'];
-        $requesterId = (int)$req['requester_id'];
-
         try {
             $this->db->beginTransaction();
+            $lockStmt = $this->db->prepare(
+                "SELECT rr.id, rr.assignment_id, rr.requester_id, rr.status,
+                        a.status AS assignment_status, s.id AS shift_id, s.status AS shift_status,
+                        act.status AS activity_status, act.coordinator_id
+                 FROM replacement_requests rr
+                 JOIN assignments a ON a.id = rr.assignment_id
+                 JOIN shifts s ON s.id = a.shift_id
+                 JOIN activities act ON act.id = s.activity_id
+                 WHERE rr.id = ? AND rr.status = 'pending'
+                 FOR UPDATE"
+            );
+            $lockStmt->execute([$requestId]);
+            $lockedRequest = $lockStmt->fetch();
+            if (!$lockedRequest) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Yêu cầu không hợp lệ hoặc đã được xử lý.'];
+            }
+
+            $req = $this->findWithDetails($requestId);
+            if (!$req || $req['status'] !== 'pending') {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Yêu cầu không hợp lệ hoặc đã được xử lý.'];
+            }
+            if (!$isAdmin && (int)$req['coordinator_id'] !== $reviewedBy) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Yêu cầu này không thuộc hoạt động của bạn.'];
+            }
+            if (!in_array($lockedRequest['assignment_status'], ['assigned', 'confirmed'], true)) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Phân công gốc đã được hủy hoặc thay thế.'];
+            }
+            if (
+                $lockedRequest['shift_status'] === 'cancelled'
+                || in_array($lockedRequest['activity_status'], ['cancelled', 'completed'], true)
+            ) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Không thể xử lý thay người cho hoạt động hoặc ca đã kết thúc.'];
+            }
+
+            $shiftId = (int)$req['shift_id'];
+            $assignmentId = (int)$req['assignment_id'];
+            $requesterId = (int)$req['requester_id'];
 
             // Nếu có chỉ định người thay
             if ($replacementUserId !== null && $replacementUserId > 0) {
@@ -295,6 +399,7 @@ class ReplacementModel extends BaseModel
                      INNER JOIN roles r ON r.id = ur.role_id AND r.name = 'volunteer'
                      WHERE u.id = ? AND u.status = 'active'
                      LIMIT 1"
+                     . " FOR UPDATE"
                 );
                 $volunteerStmt->execute([$replacementUserId]);
                 if (!$volunteerStmt->fetchColumn()) {
@@ -305,28 +410,28 @@ class ReplacementModel extends BaseModel
                 // Kiểm tra lại ràng buộc người thay
                 $shiftModel = new ShiftModel();
                 $availabilityStmt = $this->db->prepare(
-                    "SELECT id FROM availability
-                     WHERE user_id = ? AND date = ? AND time_start <= ? AND time_end >= ?
-                     LIMIT 1"
+                    "SELECT date, time_start, time_end FROM availability WHERE user_id = ? AND date = ? FOR UPDATE"
                 );
-                $availabilityStmt->execute([
-                    $replacementUserId,
+                $availabilityStmt->execute([$replacementUserId, $req['shift_date']]);
+                if (!self::isAvailableForShift(
+                    $availabilityStmt->fetchAll(),
                     $req['shift_date'],
                     $req['time_start'],
-                    $req['time_end'],
-                ]);
-                if (!$availabilityStmt->fetchColumn()) {
+                    $req['time_end']
+                )) {
                     $this->db->rollBack();
                     return ['success' => false, 'message' => 'Người thay thế chưa khai báo rảnh trong toàn bộ ca trực.'];
                 }
 
                 $existingAssignmentStmt = $this->db->prepare(
-                    "SELECT id FROM assignments
-                     WHERE shift_id = ? AND user_id = ? AND status NOT IN ('removed', 'replaced')
-                     LIMIT 1"
+                    "SELECT id, status FROM assignments
+                     WHERE shift_id = ? AND user_id = ?
+                     LIMIT 1
+                     FOR UPDATE"
                 );
                 $existingAssignmentStmt->execute([$shiftId, $replacementUserId]);
-                if ($existingAssignmentStmt->fetchColumn()) {
+                $existingAssignment = $existingAssignmentStmt->fetch();
+                if ($existingAssignment && !in_array($existingAssignment['status'], ['removed', 'replaced', 'absent'], true)) {
                     $this->db->rollBack();
                     return ['success' => false, 'message' => 'Người thay thế đã được phân công vào ca này.'];
                 }
@@ -347,15 +452,26 @@ class ReplacementModel extends BaseModel
                     }
                 }
 
-                // Gán người thay vào ca
-                $this->db->prepare(
-                    "INSERT INTO assignments (shift_id, user_id, status, assigned_by, assigned_at)
-                     VALUES (?, ?, 'assigned', ?, NOW())"
-                )->execute([$shiftId, $replacementUserId, $reviewedBy]);
-                $newAssignId = (int)$this->db->lastInsertId();
+                if ($existingAssignment) {
+                    $newAssignId = (int)$existingAssignment['id'];
+                    $this->db->prepare(
+                        "UPDATE assignments
+                         SET status = 'assigned', assigned_by = ?, assigned_at = NOW(), note = NULL, updated_at = NOW()
+                         WHERE id = ?"
+                    )->execute([$reviewedBy, $newAssignId]);
+                } else {
+                    $this->db->prepare(
+                        "INSERT INTO assignments (shift_id, user_id, status, assigned_by, assigned_at)
+                         VALUES (?, ?, 'assigned', ?, NOW())"
+                    )->execute([$shiftId, $replacementUserId, $reviewedBy]);
+                    $newAssignId = (int)$this->db->lastInsertId();
+                }
 
                 $this->db->prepare(
-                    "INSERT INTO attendance (assignment_id, user_id, shift_id, status) VALUES (?, ?, ?, 'pending')"
+                    "INSERT INTO attendance (assignment_id, user_id, shift_id, status)
+                     VALUES (?, ?, ?, 'pending')
+                     ON DUPLICATE KEY UPDATE status = 'pending', confirmed_at = NULL,
+                         hours_worked = NULL, note = NULL, updated_at = NOW()"
                 )->execute([$newAssignId, $replacementUserId, $shiftId]);
 
                 // Thông báo tới người thay thế
@@ -393,35 +509,69 @@ class ReplacementModel extends BaseModel
 
             $this->db->commit();
             return ['success' => true, 'message' => 'Đã phê duyệt yêu cầu báo vắng và phân công người thay thế thành công!'];
-        } catch (Exception $e) {
-            $this->db->rollBack();
-            return ['success' => false, 'message' => 'Lỗi: ' . $e->getMessage()];
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log('[ReplacementModel] Không thể duyệt yêu cầu thay người: ' . $e->getMessage());
+            return ['success' => false, 'message' => 'Không thể xử lý yêu cầu thay người. Vui lòng thử lại.'];
         }
     }
 
     public function rejectReplacement(int $requestId, int $reviewedBy, string $note = '', bool $isAdmin = false): array
     {
-        $req = $this->findWithDetails($requestId);
-        if (!$req || $req['status'] !== 'pending') {
-            return ['success' => false, 'message' => 'Yêu cầu không hợp lệ.'];
+        try {
+            $this->db->beginTransaction();
+            $requestStmt = $this->db->prepare(
+                "SELECT rr.id, rr.assignment_id, rr.requester_id, rr.status,
+                        s.name AS shift_name, s.date AS shift_date, act.coordinator_id
+                 FROM replacement_requests rr
+                 JOIN assignments a ON a.id = rr.assignment_id
+                 JOIN shifts s ON s.id = a.shift_id
+                 JOIN activities act ON act.id = s.activity_id
+                 WHERE rr.id = ?
+                 FOR UPDATE"
+            );
+            $requestStmt->execute([$requestId]);
+            $req = $requestStmt->fetch();
+            if (!$req || $req['status'] !== 'pending') {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Yêu cầu không hợp lệ hoặc đã được xử lý.'];
+            }
+            if (!$isAdmin && (int)$req['coordinator_id'] !== $reviewedBy) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Yêu cầu này không thuộc hoạt động của bạn.'];
+            }
+
+            $updateStmt = $this->db->prepare(
+                "UPDATE replacement_requests
+                 SET status = 'rejected', coordinator_note = ?, reviewed_by = ?, reviewed_at = NOW(), updated_at = NOW()
+                 WHERE id = ? AND status = 'pending'"
+            );
+            $updateStmt->execute([$note, $reviewedBy, $requestId]);
+            if ($updateStmt->rowCount() !== 1) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Yêu cầu đã được xử lý bởi một điều phối viên khác.'];
+            }
+
+            $this->db->prepare(
+                "INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, 'replacement', ?, ?, '/volunteer/schedule')"
+            )->execute([
+                (int)$req['requester_id'],
+                'Yêu cầu báo vắng bị từ chối',
+                "Yêu cầu báo vắng ca '{$req['shift_name']}' ngày {$req['shift_date']} đã bị từ chối. Lý do: $note"
+            ]);
+            $this->db->prepare(
+                "UPDATE attendance SET note = NULL, updated_at = NOW() WHERE assignment_id = ? AND status = 'pending'"
+            )->execute([(int)$req['assignment_id']]);
+
+            $this->db->commit();
+            return ['success' => true, 'message' => 'Đã từ chối yêu cầu báo vắng. Phân công hiện tại không bị thay đổi.'];
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
         }
-        if (!$isAdmin && (int)$req['coordinator_id'] !== $reviewedBy) {
-            return ['success' => false, 'message' => 'Yêu cầu này không thuộc hoạt động của bạn.'];
-        }
-
-        $this->db->prepare(
-            "UPDATE replacement_requests SET status = 'rejected', coordinator_note = ?, reviewed_by = ?, reviewed_at = NOW(), updated_at = NOW() WHERE id = ?"
-        )->execute([$note, $reviewedBy, $requestId]);
-
-        // Thông báo
-        $this->db->prepare(
-            "INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, 'replacement', ?, ?, '/volunteer/replacement')"
-        )->execute([
-            $req['requester_id'],
-            'Yêu cầu báo vắng bị từ chối',
-            "Yêu cầu báo vắng ca '{$req['shift_name']}' ngày {$req['shift_date']} đã bị từ chối. Lý do: $note"
-        ]);
-
-        return ['success' => true, 'message' => 'Đã từ chối yêu cầu báo vắng.'];
     }
 }

@@ -25,13 +25,16 @@ class NotificationController extends Controller
     public function index(): void
     {
         $userId = (int)Session::userId();
-        $notifications = $this->notifModel->getByUser($userId, 50);
+        $page = max(1, (int)$this->get('page', 1));
+        $result = $this->notifModel->getByUserPage($userId, $page, $this->getPageSize(15));
 
         $this->render('volunteer.notifications', [
             'title'         => 'Thông Báo Hệ Thống | VolunteerHub',
-            'notifications' => $notifications,
+            'notifications' => $result['data'],
+            'pagination'    => $result,
             'csrfToken'     => Session::generateCsrf(),
             'success'       => Session::getFlash('success'),
+            'error'         => Session::getFlash('error'),
         ]);
     }
 
@@ -47,6 +50,32 @@ class NotificationController extends Controller
             $this->notifModel->markAllAsRead($userId);
         }
 
-        $this->redirect('/volunteer/notifications', ['success' => 'Đã cập nhật trạng thái thông báo.']);
+        $page = max(1, (int)$this->post('page', 1));
+        $this->redirect('/volunteer/notifications?' . http_build_query(['page' => $page]), ['success' => 'Đã cập nhật trạng thái thông báo.']);
+    }
+
+    public function view(): void
+    {
+        $this->verifyCsrf();
+        $userId = (int)Session::userId();
+        $notificationId = filter_var($this->post('id', 0), FILTER_VALIDATE_INT);
+        $notification = $notificationId !== false && $notificationId > 0
+            ? $this->notifModel->getByIdForUser($notificationId, $userId)
+            : null;
+
+        if ($notification === null) {
+            $this->redirect('/volunteer/notifications', ['error' => 'Không tìm thấy thông báo.']);
+        }
+
+        if (!$this->notifModel->markAsRead((int)$notification['id'], $userId)) {
+            $this->redirect('/volunteer/notifications', ['error' => 'Không thể cập nhật trạng thái thông báo.']);
+        }
+
+        $link = $notification['link'] ?? '';
+        if (is_string($link) && str_starts_with($link, '/') && !str_starts_with($link, '//') && !str_contains($link, '\\')) {
+            $this->redirect($link);
+        }
+
+        $this->redirect('/volunteer/notifications', ['error' => 'Thông báo không có liên kết xem hợp lệ.']);
     }
 }

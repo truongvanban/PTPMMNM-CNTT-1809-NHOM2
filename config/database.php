@@ -16,7 +16,7 @@ return [
     'port'    => getenv('DB_PORT')    ?: '3306',
     'dbname'  => getenv('DB_NAME')    ?: 'volunteerhub',
     'user'    => getenv('DB_USER')    ?: 'root',
-    'pass'    => getenv('DB_PASS')    ?: '',
+    'pass'    => getenv('DB_PASS')    ?: 'Ban@2006',
     'charset' => getenv('DB_CHARSET') ?: 'utf8mb4',
     'options' => [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,

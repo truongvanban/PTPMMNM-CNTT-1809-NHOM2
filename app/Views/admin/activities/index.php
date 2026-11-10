@@ -42,9 +42,15 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                     <th>Thời gian</th>
                     <th>Số ca</th>
                     <th>Trạng thái</th>
+                    <th class="text-center">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
+                <?php if (empty($activities)): ?>
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">Không tìm thấy hoạt động nào phù hợp.</td>
+                    </tr>
+                <?php endif; ?>
                 <?php foreach ($activities as $act): ?>
                     <tr>
                         <td>
@@ -64,6 +70,19 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                         </td>
                         <td>
                             <span class="badge bg-success-soft text-success"><?= htmlspecialchars($act['status']) ?></span>
+                        </td>
+                        <td class="text-center">
+                            <div class="admin-activity-actions">
+                                <a href="<?= $baseUrl ?>/admin/activities/<?= (int)$act['id'] ?>/shifts" class="btn btn-outline-primary btn-sm" title="Xem danh sách ca trực">
+                                    <i class="bi bi-grid-3x3 me-1"></i>Ca trực
+                                </a>
+                                <a href="<?= $baseUrl ?>/coordinator/activities/<?= (int)$act['id'] ?>/edit" class="btn btn-outline-secondary btn-sm" title="Chỉnh sửa hoạt động">
+                                    <i class="bi bi-pencil me-1"></i>Sửa
+                                </a>
+                                <a href="<?= $baseUrl ?>/activities/<?= (int)$act['id'] ?>" target="_blank" rel="noopener noreferrer" class="btn btn-outline-info btn-sm" title="Xem trang công khai">
+                                    <i class="bi bi-eye me-1"></i>Xem
+                                </a>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>

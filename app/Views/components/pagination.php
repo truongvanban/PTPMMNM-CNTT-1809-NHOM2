@@ -8,6 +8,7 @@ $paginationLastPage = (int)$pagination['last_page'];
 $paginationTotal = (int)$pagination['total'];
 $paginationPerPage = (int)$pagination['per_page'];
 $paginationItemLabel = $pagination['item_label'] ?? 'mục';
+$paginationVisibleCount = (int)($pagination['visible_count'] ?? 0);
 $paginationSizeValue = $paginationPerPage === 0 ? 'all' : (string)$paginationPerPage;
 $paginationLink = static function (int $targetPage) use (
     $paginationUrl,
@@ -23,7 +24,7 @@ $paginationLink = static function (int $targetPage) use (
 ?>
 <div class="management-pagination">
     <div class="management-pagination-summary" aria-live="polite">
-        Hiển thị <strong><?= (int)$pagination['visible_count'] ?></strong> / <strong><?= $paginationTotal ?></strong>
+        Hiển thị <strong><?= $paginationVisibleCount ?></strong> / <strong><?= $paginationTotal ?></strong>
         <?= htmlspecialchars($paginationItemLabel, ENT_QUOTES, 'UTF-8') ?>
         <span class="mx-1">·</span> Mỗi trang
         <form action="<?= htmlspecialchars($paginationUrl, ENT_QUOTES, 'UTF-8') ?>" method="GET" class="d-inline">
@@ -37,7 +38,7 @@ $paginationLink = static function (int $targetPage) use (
             <label class="visually-hidden" for="<?= htmlspecialchars($paginationSizeId, ENT_QUOTES, 'UTF-8') ?>">Số mục mỗi trang</label>
             <select id="<?= htmlspecialchars($paginationSizeId, ENT_QUOTES, 'UTF-8') ?>" name="per_page" class="form-select form-select-sm management-page-size"
                     onchange="this.form.submit()">
-                <?php foreach ([5, 10, 15, 20] as $pageSizeOption): ?>
+                <?php foreach ([5, 10, 15, 20, 50] as $pageSizeOption): ?>
                     <option value="<?= $pageSizeOption ?>" <?= $paginationSizeValue === (string)$pageSizeOption ? 'selected' : '' ?>>
                         <?= $pageSizeOption ?>
                     </option>

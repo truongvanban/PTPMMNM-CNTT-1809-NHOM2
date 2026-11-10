@@ -21,6 +21,31 @@ class AvailabilityModel extends BaseModel
         return $stmt->fetchAll();
     }
 
+    public function getByUserPage(int $userId, int $page = 1, int $perPage = 15): array
+    {
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM availability WHERE user_id = ?");
+        $countStmt->execute([$userId]);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
+        $stmt = $this->db->prepare(
+            "SELECT * FROM availability WHERE user_id = ?
+             ORDER BY date ASC, time_start ASC $limitSql"
+        );
+        $stmt->execute([$userId]);
+        $data = $stmt->fetchAll();
+        return [
+            'data' => $data,
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+            'visible_count' => count($data),
+        ];
+    }
+
     public function add(int $userId, string $date, string $timeStart, string $timeEnd, string $note = ''): array
     {
         if ($timeEnd <= $timeStart) {

@@ -22,6 +22,41 @@ class NotificationModel extends BaseModel
         return $stmt->fetchAll();
     }
 
+    public function getByUserPage(int $userId, int $page = 1, int $perPage = 15): array
+    {
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ?");
+        $countStmt->execute([$userId]);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
+        $stmt = $this->db->prepare(
+            "SELECT * FROM notifications WHERE user_id = ?
+             ORDER BY created_at DESC $limitSql"
+        );
+        $stmt->execute([$userId]);
+        $data = $stmt->fetchAll();
+        return [
+            'data' => $data,
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+            'visible_count' => count($data),
+        ];
+    }
+
+    public function getByIdForUser(int $id, int $userId): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT * FROM notifications WHERE id = ? AND user_id = ? LIMIT 1"
+        );
+        $stmt->execute([$id, $userId]);
+        $notification = $stmt->fetch();
+        return $notification ?: null;
+    }
+
     public function getUnreadCount(int $userId): int
     {
         $stmt = $this->db->prepare(

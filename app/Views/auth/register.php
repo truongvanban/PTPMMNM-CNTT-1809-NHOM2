@@ -14,7 +14,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         <label for="full_name" class="form-label">Họ và tên <span class="text-danger">*</span></label>
         <div class="auth-input-wrap">
             <i class="bi bi-person auth-input-icon"></i>
-            <input type="text" class="form-control" id="full_name" name="full_name" placeholder="Nguyễn Văn A" autocomplete="name" required>
+            <input type="text" class="form-control" id="full_name" name="full_name" placeholder="Nguyễn Văn A" autocomplete="name" required autofocus>
         </div>
     </div>
 
@@ -36,9 +36,12 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
 
     <div class="auth-field">
         <label for="password" class="form-label">Mật khẩu <span class="text-danger">*</span></label>
-        <div class="auth-input-wrap">
+        <div class="auth-input-wrap position-relative">
             <i class="bi bi-lock auth-input-icon"></i>
-            <input type="password" class="form-control" id="password" name="password" placeholder="Tối thiểu 8 ký tự" minlength="8" autocomplete="new-password" required>
+            <input type="password" class="form-control pe-5" id="password" name="password" placeholder="Tối thiểu 8 ký tự" minlength="8" autocomplete="new-password" required>
+            <button type="button" class="auth-password-toggle" id="togglePasswordBtn" aria-label="Hiện/Ẩn mật khẩu" title="Hiện/Ẩn mật khẩu">
+                <i class="bi bi-eye" id="togglePasswordIcon"></i>
+            </button>
         </div>
         <small class="auth-field-hint">Sử dụng ít nhất 8 ký tự để bảo vệ tài khoản.</small>
     </div>

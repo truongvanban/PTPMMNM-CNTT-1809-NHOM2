@@ -1,19 +1,22 @@
 <?php
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
 $roleLabels = [];
-$roleIdsByName = [];
 foreach ($roles as $availableRole) {
     $roleLabels[$availableRole['name']] = $availableRole['display_name'];
-    $roleIdsByName[$availableRole['name']] = (int)$availableRole['id'];
 }
 $selectedPageSize = $perPage === 0 ? 'all' : $perPage;
 ?>
 <section class="admin-users-page">
-    <header class="admin-users-header">
+    <header class="admin-users-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
             <span class="admin-users-eyebrow">QUẢN TRỊ HỆ THỐNG</span>
             <h1 class="h3 fw-bold mb-1"><i class="bi bi-people-fill text-danger me-2"></i>Quản lý tài khoản</h1>
             <p class="text-secondary mb-0">Tìm kiếm tài khoản, cập nhật vai trò và trạng thái truy cập.</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-success btn-sm px-3" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                <i class="bi bi-person-plus-fill me-1"></i>Thêm tài khoản mới
+            </button>
         </div>
     </header>
 
@@ -153,38 +156,30 @@ $selectedPageSize = $perPage === 0 ? 'all' : $perPage;
                                 <div class="admin-user-role-list">
                                     <?php foreach ($userRoleNames as $assignedRoleName): ?>
                                         <?php
-                                        $assignedRoleId = $roleIdsByName[$assignedRoleName] ?? 0;
                                         $roleColorClass = $assignedRoleName === 'admin' ? 'admin' : ($assignedRoleName === 'coordinator' ? 'coordinator' : 'volunteer');
                                         ?>
                                         <div class="admin-user-role-tag <?= $roleColorClass ?>">
                                             <?= htmlspecialchars($roleLabels[$assignedRoleName] ?? $assignedRoleName, ENT_QUOTES, 'UTF-8') ?>
-                                            <?php if (!$isCurrentAdmin && $assignedRoleId > 0): ?>
-                                                <form action="<?= $baseUrl ?>/admin/users/<?= $userId ?>/role" method="POST"
-                                                      data-confirm="Gỡ vai trò này khỏi tài khoản?">
-                                                    <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                                    <input type="hidden" name="role_id" value="<?= $assignedRoleId ?>">
-                                                    <input type="hidden" name="action" value="remove">
-                                                    <button type="submit" aria-label="Gỡ vai trò <?= htmlspecialchars($roleLabels[$assignedRoleName] ?? $assignedRoleName, ENT_QUOTES, 'UTF-8') ?>"
-                                                            title="Gỡ vai trò"><i class="bi bi-x"></i></button>
-                                                </form>
-                                            <?php endif; ?>
                                         </div>
                                     <?php endforeach; ?>
                                     <?php if (!$userRoleNames): ?><span class="text-secondary small">Chưa gán vai trò</span><?php endif; ?>
                                 </div>
                                 <?php if (!$isCurrentAdmin): ?>
                                     <?php
-                                    $rolesToAdd = array_filter($roles, static fn(array $availableRole): bool => !in_array($availableRole['name'], $userRoleNames, true));
+                                    $rolesToSet = array_filter(
+                                        $roles,
+                                        static fn(array $availableRole): bool => $availableRole['name'] !== 'admin'
+                                    );
                                     ?>
-                                    <?php if ($rolesToAdd): ?>
+                                    <?php if ($rolesToSet): ?>
                                         <form action="<?= $baseUrl ?>/admin/users/<?= $userId ?>/role" method="POST" class="admin-user-add-role">
                                             <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                            <input type="hidden" name="action" value="add">
-                                            <label class="visually-hidden" for="add-role-<?= $userId ?>">Thêm vai trò</label>
-                                            <select id="add-role-<?= $userId ?>" name="role_id" class="form-select form-select-sm"
-                                                    onchange="if (this.value) this.form.submit()">
-                                                <option value="">Thêm vai trò...</option>
-                                                <?php foreach ($rolesToAdd as $availableRole): ?>
+                                            <input type="hidden" name="action" value="replace">
+                                            <label class="visually-hidden" for="set-role-<?= $userId ?>">Đổi vai trò</label>
+                                            <select id="set-role-<?= $userId ?>" name="role_id" class="form-select form-select-sm"
+                                                    onchange="if (this.value && confirm('Đổi vai trò? Tài khoản sẽ chỉ còn vai trò vừa chọn.')) this.form.submit(); else this.value = '';">
+                                                <option value="">Đổi vai trò...</option>
+                                                <?php foreach ($rolesToSet as $availableRole): ?>
                                                     <option value="<?= (int)$availableRole['id'] ?>"><?= htmlspecialchars($availableRole['display_name'], ENT_QUOTES, 'UTF-8') ?></option>
                                                 <?php endforeach; ?>
                                             </select>
@@ -239,6 +234,55 @@ $selectedPageSize = $perPage === 0 ? 'all' : $perPage;
         require VIEW_PATH . '/components/pagination.php';
         ?>
     </section>
+
+    <!-- Modal Tạo Tài Khoản Mới -->
+    <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <form action="<?= $baseUrl ?>/admin/users/create" method="POST">
+                    <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                    <div class="modal-header border-0 pb-0">
+                        <h2 class="modal-title h5 fw-bold" id="createUserModalLabel">
+                            <i class="bi bi-person-plus-fill text-success me-2"></i>Thêm tài khoản mới
+                        </h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body pt-3">
+                        <div class="mb-3">
+                            <label for="new_full_name" class="form-label fw-semibold">Họ và tên <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="new_full_name" name="full_name" placeholder="Nguyễn Văn A" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_email" class="form-label fw-semibold">Địa chỉ email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="new_email" name="email" placeholder="email@volunteerhub.vn" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_phone" class="form-label fw-semibold">Số điện thoại</label>
+                            <input type="tel" class="form-control" id="new_phone" name="phone" placeholder="0901234567">
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label fw-semibold">Mật khẩu ban đầu <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="new_password" name="password" minlength="8" placeholder="Tối thiểu 8 ký tự" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_role_id" class="form-label fw-semibold">Vai trò <span class="text-danger">*</span></label>
+                            <select class="form-select" id="new_role_id" name="role_id" required>
+                                <?php foreach ($roles as $r): ?>
+                                    <option value="<?= (int)$r['id'] ?>" <?= $r['name'] === 'volunteer' ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($r['display_name']) ?> (<?= htmlspecialchars($r['name']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Tạo tài khoản</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <details class="admin-user-danger-zone">
         <summary><i class="bi bi-three-dots me-2"></i>Khu vực thao tác nguy hiểm</summary>

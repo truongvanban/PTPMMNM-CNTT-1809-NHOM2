@@ -99,7 +99,7 @@ abstract class Controller
         }
 
         $pageSize = filter_var($value, FILTER_VALIDATE_INT);
-        return in_array($pageSize, [5, 10, 15, 20], true) ? $pageSize : $default;
+        return in_array($pageSize, [5, 10, 15, 20, 50], true) ? $pageSize : $default;
     }
 
     /**

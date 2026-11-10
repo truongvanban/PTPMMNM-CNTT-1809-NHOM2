@@ -118,11 +118,13 @@ class DashboardController extends Controller
     {
         $userId = (int)Session::userId();
         $assignmentModel = new AssignmentModel();
-        $assignments = $assignmentModel->getByUser($userId);
+        $page = max(1, (int)$this->get('page', 1));
+        $result = $assignmentModel->getByUserPage($userId, $page, $this->getPageSize(15));
 
         $this->render('volunteer.history', [
             'title'       => 'Lịch Sử Hoạt Động | VolunteerHub',
-            'assignments' => $assignments,
+            'assignments' => $result['data'],
+            'pagination'  => $result,
         ]);
     }
 }

@@ -12,11 +12,49 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         </a>
     </div>
 
+    <form action="<?= $baseUrl ?>/volunteer/shifts" method="GET" class="row g-2 align-items-end mb-4 p-3 rounded-3 bg-light border">
+        <div class="col-md-5">
+            <label for="shift-filter-activity" class="form-label small fw-semibold">Lọc theo hoạt động</label>
+            <select id="shift-filter-activity" name="activity_id" class="form-select">
+                <option value="">Tất cả hoạt động</option>
+                <?php foreach ($activities as $activity): ?>
+                    <option value="<?= (int)$activity['id'] ?>" <?= $activityId === (int)$activity['id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($activity['title'], ENT_QUOTES, 'UTF-8') ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-5">
+            <label for="shift-filter-skill" class="form-label small fw-semibold">Lọc theo kỹ năng yêu cầu</label>
+            <select id="shift-filter-skill" name="skill_id" class="form-select">
+                <option value="">Tất cả kỹ năng</option>
+                <?php foreach ($requiredSkills as $requiredSkill): ?>
+                    <option value="<?= (int)$requiredSkill['id'] ?>" <?= $skillId === (int)$requiredSkill['id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($requiredSkill['name'], ENT_QUOTES, 'UTF-8') ?>
+                        <?php if (!empty($requiredSkill['category'])): ?>
+                            (<?= htmlspecialchars($requiredSkill['category'], ENT_QUOTES, 'UTF-8') ?>)
+                        <?php endif; ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-success flex-grow-1">
+                <i class="bi bi-funnel me-1"></i> Lọc
+            </button>
+            <?php if ($activityId > 0 || $skillId > 0): ?>
+                <a href="<?= $baseUrl ?>/volunteer/shifts" class="btn btn-outline-secondary" aria-label="Xóa bộ lọc" title="Xóa bộ lọc">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            <?php endif; ?>
+        </div>
+    </form>
+
     <?php if (empty($shifts)): ?>
         <div class="p-5 text-center text-muted">
             <i class="bi bi-calendar-x fs-1"></i>
-            <h2 class="h5 mt-2">Hiện tại không có ca trực nào đang mở đăng ký</h2>
-            <p class="small">Hãy quay lại sau hoặc theo dõi các thông báo mới từ Điều phối viên.</p>
+            <h2 class="h5 mt-2">Không tìm thấy ca trực phù hợp</h2>
+            <p class="small">Thử đổi hoạt động hoặc kỹ năng yêu cầu để xem thêm ca trực.</p>
         </div>
     <?php else: ?>
         <div class="table-responsive">
@@ -38,7 +76,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                             $registeredCount = (int)$s['registered_count'];
                             $assignedCount = (int)$s['assigned_count'];
                             $maxVolunteers = (int)$s['max_volunteers'];
-                            $isFull = $registeredCount >= $maxVolunteers;
+                            $isFull = max($registeredCount, $assignedCount) >= $maxVolunteers;
                         ?>
                         <tr>
                             <td>
@@ -97,13 +135,23 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                 </tbody>
             </table>
         </div>
+        <?php
+        $pagination = array_merge($pagination ?? [], [
+            'url' => $baseUrl . '/volunteer/shifts',
+            'params' => [],
+            'visible_count' => count($shifts),
+            'item_label' => 'ca trực',
+        ]);
+        require VIEW_PATH . '/components/pagination.php';
+        ?>
         <?php foreach ($shifts as $s): ?>
             <?php
             $shiftId = (int)$s['id'];
             $isRegistered = !empty($s['my_reg_id']) && in_array($s['my_reg_status'], ['approved', 'pending'], true);
             $registeredCount = (int)$s['registered_count'];
+            $assignedCount = (int)$s['assigned_count'];
             $maxVolunteers = (int)$s['max_volunteers'];
-            $isFull = $registeredCount >= $maxVolunteers;
+            $isFull = max($registeredCount, $assignedCount) >= $maxVolunteers;
             ?>
             <div class="modal fade" id="shift-detail-<?= $shiftId ?>" tabindex="-1"
                  aria-labelledby="shift-detail-label-<?= $shiftId ?>" aria-hidden="true">
@@ -138,7 +186,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                 <dt class="col-5"><i class="bi bi-people me-1 text-primary"></i>Số lượng</dt>
                                 <dd class="col-7"><?= (int)$s['min_volunteers'] ?>–<?= $maxVolunteers ?> người</dd>
                                 <dt class="col-5"><i class="bi bi-check2-circle me-1 text-primary"></i>Đã đăng ký</dt>
-                                <dd class="col-7"><?= $registeredCount ?> / <?= $maxVolunteers ?> người</dd>
+                                <dd class="col-7"><?= max($registeredCount, $assignedCount) ?> / <?= $maxVolunteers ?> người</dd>
                                 <dt class="col-5"><i class="bi bi-star me-1 text-primary"></i>Kỹ năng</dt>
                                 <dd class="col-7"><?= htmlspecialchars($s['required_skills'] ?: 'Không yêu cầu kỹ năng cụ thể', ENT_QUOTES, 'UTF-8') ?></dd>
                                 <?php if (!empty($s['registration_deadline'])): ?>
@@ -156,6 +204,8 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                 <form action="<?= $baseUrl ?>/volunteer/register" method="POST" class="d-inline">
                                     <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                     <input type="hidden" name="shift_id" value="<?= $shiftId ?>">
+                                    <label for="shift-registration-note-<?= $shiftId ?>" class="form-label small text-muted">Ghi chú (không bắt buộc)</label>
+                                    <textarea id="shift-registration-note-<?= $shiftId ?>" name="note" class="form-control form-control-sm mb-2" rows="2" maxlength="500" placeholder="Thông tin thêm cho điều phối viên"></textarea>
                                     <button type="submit" class="btn btn-success">
                                         <i class="bi bi-plus-lg me-1"></i> Đăng ký ca này
                                     </button>

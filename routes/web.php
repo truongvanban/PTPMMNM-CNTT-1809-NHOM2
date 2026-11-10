@@ -43,6 +43,7 @@ return [
     ['POST', '/volunteer/replacement',     'Volunteer\ReplacementController@store',  'volunteer'],
     ['GET',  '/volunteer/notifications',   'Volunteer\NotificationController@index', 'volunteer'],
     ['POST', '/volunteer/notifications/read','Volunteer\NotificationController@markRead','volunteer'],
+    ['POST', '/volunteer/notifications/view','Volunteer\NotificationController@view', 'volunteer'],
     ['GET',  '/volunteer/history',         'Volunteer\DashboardController@history',  'volunteer'],
     ['GET',  '/volunteer/change-password', 'Volunteer\ProfileController@changePasswordForm','volunteer'],
     ['POST', '/volunteer/change-password', 'Volunteer\ProfileController@changePassword','volunteer'],
@@ -82,6 +83,7 @@ return [
     // ─── Khu vực Admin ─────────────────────────────────────────
     ['GET',  '/admin/dashboard',                       'Admin\DashboardController@index',    'admin'],
     ['GET',  '/admin/users',                           'Admin\UserController@index',          'admin'],
+    ['POST', '/admin/users/create',                    'Admin\UserController@create',         'admin'],
     ['POST', '/admin/users/delete',                    'Admin\UserController@deleteMultiple','admin'],
     ['POST', '/admin/users/delete-all',                'Admin\UserController@deleteAll',     'admin'],
     ['GET',  '/admin/users/{id}/edit',                 'Admin\UserController@editForm',       'admin'],
@@ -93,6 +95,7 @@ return [
     ['POST', '/admin/skills/{id}/edit',                'Admin\SkillController@update',        'admin'],
     ['POST', '/admin/skills/{id}/delete',              'Admin\SkillController@delete',        'admin'],
     ['GET',  '/admin/activities',                      'Admin\ActivityController@index',      'admin'],
+    ['GET',  '/admin/activities/{id}/shifts',          'Admin\ActivityController@shifts',     'admin'],
     ['GET',  '/admin/reports',                         'Admin\ReportController@index',        'admin'],
     ['GET',  '/admin/reports/algorithm',               'Admin\ReportController@algorithmComparison','admin'],
     ['GET',  '/admin/logs',                            'Admin\LogController@index',           'admin'],

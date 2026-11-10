@@ -20,6 +20,32 @@ $gradients = [
     </a>
 </div>
 
+<form method="GET" action="<?= $baseUrl ?>/volunteer/activities" class="row g-2 align-items-end mb-4">
+    <input type="hidden" name="page" value="1">
+    <input type="hidden" name="per_page" value="<?= (int)($pagination['per_page'] ?? 10) === 0 ? 'all' : (int)($pagination['per_page'] ?? 10) ?>">
+    <div class="col-sm-5 col-md-4">
+        <label for="activity-category" class="form-label small fw-semibold">Danh mục</label>
+        <select id="activity-category" name="category" class="form-select">
+            <option value="">Tất cả danh mục</option>
+            <?php foreach ($categories as $categoryOption): ?>
+                <option value="<?= htmlspecialchars($categoryOption, ENT_QUOTES, 'UTF-8') ?>" <?= $selectedCategory === $categoryOption ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($categoryOption, ENT_QUOTES, 'UTF-8') ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-sm-5 col-md-4">
+        <label for="activity-sort" class="form-label small fw-semibold">Sắp xếp</label>
+        <select id="activity-sort" name="sort" class="form-select">
+            <option value="date" <?= $sort === 'date' ? 'selected' : '' ?>>Ngày diễn ra</option>
+            <option value="category" <?= $sort === 'category' ? 'selected' : '' ?>>Danh mục A–Z</option>
+        </select>
+    </div>
+    <div class="col-sm-2">
+        <button type="submit" class="btn btn-success w-100">Áp dụng</button>
+    </div>
+</form>
+
 <?php if (empty($activities)): ?>
     <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
         <i class="bi bi-calendar-x text-muted" style="font-size: 4rem;"></i>
@@ -57,6 +83,12 @@ $gradients = [
                         </p>
 
                         <div class="d-flex flex-column gap-2 mb-3 small">
+                            <?php if (!empty($act['category'])): ?>
+                                <div class="d-flex align-items-center text-muted">
+                                    <i class="bi bi-tag-fill text-success me-2" style="width: 16px;"></i>
+                                    <span><?= htmlspecialchars($act['category']) ?></span>
+                                </div>
+                            <?php endif; ?>
                             <div class="d-flex align-items-center text-muted">
                                 <i class="bi bi-geo-alt-fill text-danger me-2" style="width: 16px;"></i>
                                 <span><?= htmlspecialchars($act['location'] ?? 'Chưa xác định') ?></span>
@@ -97,16 +129,13 @@ $gradients = [
         <?php endforeach; ?>
     </div>
 
-    <!-- Pagination -->
-    <?php if (($pagination['last_page'] ?? 1) > 1): ?>
-        <nav class="mt-4 d-flex justify-content-center">
-            <ul class="pagination pagination-sm">
-                <?php for ($p = 1; $p <= $pagination['last_page']; $p++): ?>
-                    <li class="page-item <?= $p === ($pagination['current_page'] ?? 1) ? 'active' : '' ?>">
-                        <a class="page-link" href="<?= $baseUrl ?>/volunteer/activities?page=<?= $p ?>"><?= $p ?></a>
-                    </li>
-                <?php endfor; ?>
-            </ul>
-        </nav>
-    <?php endif; ?>
 <?php endif; ?>
+<?php
+$pagination = array_merge($pagination ?? [], [
+    'url' => $baseUrl . '/volunteer/activities',
+    'params' => ['category' => $selectedCategory, 'sort' => $sort],
+    'visible_count' => count($activities),
+    'item_label' => 'hoạt động',
+]);
+require VIEW_PATH . '/components/pagination.php';
+?>

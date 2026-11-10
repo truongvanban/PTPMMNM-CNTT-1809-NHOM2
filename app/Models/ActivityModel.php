@@ -11,6 +11,15 @@ class ActivityModel extends BaseModel
 {
     protected string $table = 'activities';
 
+    public const CATEGORIES = [
+        'Cộng đồng',
+        'Môi trường',
+        'Sức khỏe',
+        'Giáo dục',
+        'Hỗ trợ xã hội',
+        'Khác',
+    ];
+
     public function findWithCoordinator(int $id): ?array
     {
         $stmt = $this->db->prepare(
@@ -23,27 +32,59 @@ class ActivityModel extends BaseModel
         return $stmt->fetch() ?: null;
     }
 
-    public function getOpenActivities(int $page = 1, int $perPage = 12): array
+    public function getOpenActivities(
+        int $page = 1,
+        int $perPage = 12,
+        string $category = '',
+        string $sort = 'date'
+    ): array
     {
-        $total = $this->count("status IN ('open','ongoing') AND registration_deadline >= NOW()");
+        $where = "a.status IN ('open','ongoing') AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())";
+        $params = [];
+        if ($category !== '') {
+            $where .= ' AND a.category = ?';
+            $params[] = $category;
+        }
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM activities a WHERE $where");
+        $countStmt->execute($params);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
         $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
+        $orderBy = $sort === 'category'
+            ? "a.category IS NULL, a.category = '', a.category ASC, a.date_start ASC"
+            : 'a.date_start ASC';
         $stmt = $this->db->prepare(
             "SELECT a.*, u.full_name as coordinator_name,
                     (SELECT COUNT(*) FROM shifts s WHERE s.activity_id = a.id AND s.status != 'cancelled') as shift_count
              FROM activities a
              JOIN users u ON a.coordinator_id = u.id
-             WHERE a.status IN ('open','ongoing') AND a.registration_deadline >= NOW()
-             ORDER BY a.date_start ASC
-             LIMIT $perPage OFFSET $offset"
+             WHERE $where
+             ORDER BY $orderBy
+             $limitSql"
         );
-        $stmt->execute();
+        $stmt->execute($params);
         return [
             'data'         => $stmt->fetchAll(),
             'total'        => $total,
             'per_page'     => $perPage,
             'current_page' => $page,
-            'last_page'    => (int)ceil($total / $perPage),
+            'last_page'    => $lastPage,
         ];
+    }
+
+    public function getOpenActivityCategories(): array
+    {
+        $stmt = $this->db->query(
+            "SELECT DISTINCT category
+             FROM activities
+             WHERE status IN ('open','ongoing')
+               AND (registration_deadline IS NULL OR registration_deadline >= NOW())
+               AND category IS NOT NULL AND category != ''
+             ORDER BY category ASC"
+        );
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
     }
 
     public function getByCoordinator(int $coordinatorId, string $status = ''): array
@@ -107,11 +148,77 @@ class ActivityModel extends BaseModel
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
-            "INSERT INTO activities (coordinator_id, title, description, location, date_start, date_end, registration_deadline, status, max_volunteers)
-             VALUES (:coordinator_id, :title, :description, :location, :date_start, :date_end, :registration_deadline, :status, :max_volunteers)"
+            "INSERT INTO activities (coordinator_id, title, description, category, location, date_start, date_end, registration_deadline, status, max_volunteers, image_url)
+             VALUES (:coordinator_id, :title, :description, :category, :location, :date_start, :date_end, :registration_deadline, :status, :max_volunteers, :image_url)"
         );
         $stmt->execute($data);
         return (int)$this->db->lastInsertId();
+    }
+
+    public function createWithDetails(array $data, array $skillIds, array $attachments): int
+    {
+        $this->db->beginTransaction();
+        try {
+            $activityId = $this->create($data);
+
+            if ($skillIds !== []) {
+                $skillStmt = $this->db->prepare(
+                    "INSERT INTO activity_required_skills (activity_id, skill_id) VALUES (?, ?)"
+                );
+                foreach ($skillIds as $skillId) {
+                    $skillStmt->execute([$activityId, $skillId]);
+                }
+            }
+
+            if ($attachments !== []) {
+                $attachmentStmt = $this->db->prepare(
+                    "INSERT INTO activity_attachments (activity_id, original_name, file_path, mime_type, file_size)
+                     VALUES (?, ?, ?, ?, ?)"
+                );
+                foreach ($attachments as $attachment) {
+                    $attachmentStmt->execute([
+                        $activityId,
+                        $attachment['original_name'],
+                        $attachment['file_path'],
+                        $attachment['mime_type'],
+                        $attachment['file_size'],
+                    ]);
+                }
+            }
+
+            $this->db->commit();
+            return $activityId;
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public function getRequiredSkillsForActivity(int $activityId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT s.id, s.name, s.category
+             FROM activity_required_skills ars
+             JOIN skills s ON s.id = ars.skill_id
+             WHERE ars.activity_id = ?
+             ORDER BY s.category, s.name"
+        );
+        $stmt->execute([$activityId]);
+        return $stmt->fetchAll();
+    }
+
+    public function getAttachmentsForActivity(int $activityId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id, original_name, file_path, mime_type, file_size
+             FROM activity_attachments
+             WHERE activity_id = ?
+             ORDER BY id ASC"
+        );
+        $stmt->execute([$activityId]);
+        return $stmt->fetchAll();
     }
 
     public function update(int $id, array $data): bool
@@ -160,12 +267,31 @@ class ActivityModel extends BaseModel
     }
 
     /**
-     * Lấy tất cả hoạt động đang mở (không lọc theo deadline) cho TNV duyệt
+     * Lấy hoạt động đang mở đăng ký cho TNV duyệt
      */
-    public function getAllOpenActivities(int $page = 1, int $perPage = 9): array
+    public function getAllOpenActivities(
+        int $page = 1,
+        int $perPage = 10,
+        string $category = '',
+        string $sort = 'date'
+    ): array
     {
-        $total = $this->count("status IN ('open','ongoing')");
+        $where = "a.status IN ('open','ongoing') AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())";
+        $params = [];
+        if ($category !== '') {
+            $where .= ' AND a.category = ?';
+            $params[] = $category;
+        }
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM activities a WHERE $where");
+        $countStmt->execute($params);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
         $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
+        $orderBy = $sort === 'category'
+            ? "a.category IS NULL, a.category = '', a.category ASC, a.date_start ASC"
+            : 'a.date_start DESC';
         $stmt = $this->db->prepare(
             "SELECT a.*, u.full_name as coordinator_name,
                     (SELECT COUNT(*) FROM shifts s WHERE s.activity_id = a.id AND s.status != 'cancelled') as shift_count,
@@ -174,27 +300,42 @@ class ActivityModel extends BaseModel
                      WHERE s2.activity_id = a.id AND r.status IN ('pending','approved')) as registered_count
              FROM activities a
              JOIN users u ON a.coordinator_id = u.id
-             WHERE a.status IN ('open','ongoing')
-             ORDER BY a.date_start DESC
-             LIMIT $perPage OFFSET $offset"
+             WHERE $where
+             ORDER BY $orderBy
+             $limitSql"
         );
-        $stmt->execute();
+        $stmt->execute($params);
+        $data = $stmt->fetchAll();
         return [
-            'data'         => $stmt->fetchAll(),
+            'data'         => $data,
             'total'        => $total,
             'per_page'     => $perPage,
             'current_page' => $page,
-            'last_page'    => max(1, (int)ceil($total / $perPage)),
+            'last_page'    => $lastPage,
+            'visible_count'=> count($data),
         ];
     }
 
     /**
      * Lấy tất cả ca trực của một hoạt động kèm trạng thái đăng ký của TNV
      */
-    public function getActivityShiftsForVolunteer(int $activityId, int $userId): array
+    public function getActivityShiftsForVolunteer(
+        int $activityId,
+        int $userId,
+        int $page = 1,
+        int $perPage = 10
+    ): array
     {
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM shifts WHERE activity_id = ? AND status != 'cancelled'");
+        $countStmt->execute([$activityId]);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
         $stmt = $this->db->prepare(
-            "SELECT s.*, act.title as activity_title,
+            "SELECT s.*, act.title as activity_title, act.status as activity_status,
+                    act.registration_deadline,
                     (SELECT GROUP_CONCAT(sk.name SEPARATOR ', ')
                      FROM shift_required_skills srs
                      JOIN skills sk ON srs.skill_id = sk.id
@@ -202,16 +343,27 @@ class ActivityModel extends BaseModel
                     (SELECT COUNT(*) FROM registrations r2
                      WHERE r2.shift_id = s.id AND r2.status IN ('pending','approved')) as registered_count,
                     (SELECT COUNT(*) FROM assignments asgn
-                     WHERE asgn.shift_id = s.id AND asgn.status NOT IN ('removed','replaced')) as assigned_count,
+                     WHERE asgn.shift_id = s.id AND asgn.status NOT IN ('removed','replaced','absent')) as assigned_count,
                     reg.id as my_reg_id,
-                    reg.status as my_reg_status
+                    reg.status as my_reg_status,
+                    (SELECT asgn.status FROM assignments asgn
+                     WHERE asgn.shift_id = s.id AND asgn.user_id = ? AND asgn.status NOT IN ('removed','replaced')
+                     ORDER BY asgn.assigned_at DESC LIMIT 1) as my_assignment_status
              FROM shifts s
              JOIN activities act ON s.activity_id = act.id
              LEFT JOIN registrations reg ON reg.shift_id = s.id AND reg.user_id = ?
              WHERE s.activity_id = ? AND s.status != 'cancelled'
-             ORDER BY s.date ASC, s.time_start ASC"
+             ORDER BY s.date ASC, s.time_start ASC $limitSql"
         );
-        $stmt->execute([$userId, $activityId]);
-        return $stmt->fetchAll();
+        $stmt->execute([$userId, $userId, $activityId]);
+        $data = $stmt->fetchAll();
+        return [
+            'data' => $data,
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+            'visible_count' => count($data),
+        ];
     }
 }

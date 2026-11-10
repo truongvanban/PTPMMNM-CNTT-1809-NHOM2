@@ -1,7 +1,7 @@
 <?php
 /**
  * tests/run_tests.php
- * Bộ kiểm thử tự động toàn diện cho hệ thống VolunteerHub (TC01 -> TC05)
+ * Bộ kiểm thử tự động cho các ràng buộc phân công và dữ liệu mẫu (TC01 -> TC06)
  * Chạy bằng lệnh: php tests/run_tests.php
  */
 
@@ -16,6 +16,7 @@ require_once __DIR__ . '/ConstraintValidator.php';
 use App\Services\BaselineGreedy;
 use App\Services\ImprovedGreedy;
 use App\Services\AssignmentService;
+use App\Models\ReplacementModel;
 use Tests\ConstraintValidator;
 
 class TestRunner
@@ -33,6 +34,7 @@ class TestRunner
         $this->testTC03_NoOverlap();
         $this->testTC04_CapacityLimit();
         $this->testTC05_AlgorithmComparison();
+        $this->testTC06_ReplacementAvailability();
         $this->testDatabaseDatasets();
 
         $this->printSummary();
@@ -303,6 +305,64 @@ class TestRunner
         );
 
         $this->record("TC05 - So sánh thực nghiệm hai thuật toán", $pass, $detail);
+    }
+
+    /**
+     * TC06: Người thay thế phải khai báo rảnh bao phủ toàn bộ ca
+     */
+    private function testTC06_ReplacementAvailability(): void
+    {
+        $shift = [
+            'id' => 1,
+            'name' => 'Ca thay thế',
+            'date' => '2024-03-20',
+            'time_start' => '13:00:00',
+            'time_end' => '17:00:00',
+            'min_volunteers' => 1,
+            'max_volunteers' => 3,
+            'mandatory_skills' => [],
+        ];
+        $volunteers = [
+            [
+                'id' => 1,
+                'full_name' => 'Không khai báo rảnh',
+                'skills' => [],
+                'availability' => [],
+            ],
+            [
+                'id' => 2,
+                'full_name' => 'Chỉ rảnh một phần',
+                'skills' => [],
+                'availability' => [['date' => '2024-03-20', 'time_start' => '13:00:00', 'time_end' => '15:00:00']],
+            ],
+            [
+                'id' => 3,
+                'full_name' => 'Rảnh toàn ca',
+                'skills' => [],
+                'availability' => [['date' => '2024-03-20', 'time_start' => '12:00:00', 'time_end' => '18:00:00']],
+            ],
+        ];
+        $result = ConstraintValidator::validate([$shift], $volunteers, [], [1 => [1, 2, 3]]);
+        $availabilityViolations = array_column(
+            array_filter($result['violations'], static fn(array $violation): bool => $violation['type'] === 'availability'),
+            'user_id'
+        );
+        $pass = !$result['is_valid']
+            && count($availabilityViolations) === 2
+            && in_array(1, $availabilityViolations, true)
+            && in_array(2, $availabilityViolations, true)
+            && !in_array(3, $availabilityViolations, true)
+            && !ReplacementModel::isAvailableForShift([], $shift['date'], $shift['time_start'], $shift['time_end'])
+            && !ReplacementModel::isAvailableForShift($volunteers[1]['availability'], $shift['date'], $shift['time_start'], $shift['time_end'])
+            && ReplacementModel::isAvailableForShift($volunteers[2]['availability'], $shift['date'], $shift['time_start'], $shift['time_end']);
+
+        $this->record(
+            'TC06 - Người thay thế phải rảnh toàn bộ ca',
+            $pass,
+            $pass
+                ? 'Người không khai báo hoặc chỉ rảnh một phần bị loại; người rảnh toàn ca hợp lệ.'
+                : 'Lỗi: Điều kiện lịch rảnh của người thay thế chưa được kiểm tra đúng.'
+        );
     }
 
     /**

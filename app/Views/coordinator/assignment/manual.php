@@ -121,8 +121,7 @@ $maxVol = (int)$shift['max_volunteers'];
         <div class="card border-0 shadow-sm rounded-4 p-4">
             <h2 class="h5 fw-bold mb-1"><i class="bi bi-person-plus-fill text-success me-2"></i>Thêm Người Vào Ca</h2>
             <p class="text-muted small mb-3">
-                Chọn từ <?= count($availableVolunteers) ?> tình nguyện viên đã đăng ký và được duyệt.
-                Hệ thống kiểm tra lại kỹ năng, lịch và giới hạn ca trước khi lưu.
+                Chọn từ <?= (int)($candidatePagination['total'] ?? count($availableVolunteers)) ?> tình nguyện viên đã đăng ký, được duyệt, đủ kỹ năng bắt buộc và không trùng lịch. Sau khi được phân công, tình nguyện viên cần xác nhận tham gia.
             </p>
 
             <?php if ($assignedCount >= $maxVol): ?>
@@ -132,7 +131,9 @@ $maxVol = (int)$shift['max_volunteers'];
             <?php else: ?>
                 <?php if (empty($availableVolunteers)): ?>
                     <div class="alert alert-info py-2 small mb-0">
-                        Chưa có tình nguyện viên đã đăng ký và được duyệt nào còn có thể phân công vào ca này.
+                        <?= $assignedCount > 0
+                            ? 'Không còn tình nguyện viên nào khác đáp ứng đủ điều kiện phân công cho ca này.'
+                            : 'Chưa có tình nguyện viên nào đáp ứng đủ điều kiện phân công cho ca này.' ?>
                     </div>
                 <?php else: ?>
                 <form action="<?= $baseUrl ?>/coordinator/assignment/manual/add" method="POST">
@@ -156,6 +157,16 @@ $maxVol = (int)$shift['max_volunteers'];
                         <i class="bi bi-plus-lg me-1"></i> Thêm vào ca này
                     </button>
                 </form>
+                <?php
+                $pagination = array_merge($candidatePagination ?? [], [
+                    'url' => $baseUrl . '/coordinator/assignment/manual/' . (int)$shift['id'],
+                    'params' => [],
+                    'visible_count' => count($availableVolunteers),
+                    'item_label' => 'tình nguyện viên phù hợp',
+                    'size_id' => 'eligible-volunteer-page-size',
+                ]);
+                require VIEW_PATH . '/components/pagination.php';
+                ?>
                 <?php endif; ?>
             <?php endif; ?>
         </div>

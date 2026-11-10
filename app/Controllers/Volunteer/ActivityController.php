@@ -12,6 +12,7 @@ use App\Core\Controller;
 use App\Core\Session;
 use App\Models\ActivityModel;
 use App\Models\RegistrationModel;
+use App\Models\ShiftModel;
 
 class ActivityController extends Controller
 {
@@ -29,12 +30,27 @@ class ActivityController extends Controller
     public function index(): void
     {
         $page = max(1, (int)$this->get('page', 1));
-        $result = $this->activityModel->getAllOpenActivities($page, 9);
+        $categories = $this->activityModel->getOpenActivityCategories();
+        $requestedCategory = $this->get('category', '');
+        $category = is_string($requestedCategory) && in_array($requestedCategory, $categories, true)
+            ? $requestedCategory
+            : '';
+        $requestedSort = $this->get('sort', 'date');
+        $sort = $requestedSort === 'category' ? 'category' : 'date';
+        $result = $this->activityModel->getAllOpenActivities(
+            $page,
+            $this->getPageSize(10),
+            $category,
+            $sort
+        );
 
         $this->render('volunteer.activities', [
             'title'      => 'Khám Phá Hoạt Động Tình Nguyện | VolunteerHub',
             'activities' => $result['data'],
             'pagination' => $result,
+            'categories' => $categories,
+            'selectedCategory' => $category,
+            'sort' => $sort,
             'csrfToken'  => Session::generateCsrf(),
             'success'    => Session::getFlash('success'),
             'error'      => Session::getFlash('error'),
@@ -56,12 +72,21 @@ class ActivityController extends Controller
             return;
         }
 
-        $shifts = $this->activityModel->getActivityShiftsForVolunteer($actId, $userId);
+        $page = max(1, (int)$this->get('page', 1));
+        $shiftResult = $this->activityModel->getActivityShiftsForVolunteer(
+            $actId,
+            $userId,
+            $page,
+            $this->getPageSize(10)
+        );
 
         $this->render('volunteer.activity_detail', [
             'title'     => $activity['title'] . ' | VolunteerHub',
             'activity'  => $activity,
-            'shifts'    => $shifts,
+            'requiredSkills' => $this->activityModel->getRequiredSkillsForActivity($actId),
+            'attachments' => $this->activityModel->getAttachmentsForActivity($actId),
+            'shifts'    => $shiftResult['data'],
+            'pagination'=> $shiftResult,
             'csrfToken' => Session::generateCsrf(),
             'success'   => Session::getFlash('success'),
             'error'     => Session::getFlash('error'),
@@ -74,17 +99,31 @@ class ActivityController extends Controller
     public function registerShift(): void
     {
         $this->verifyCsrf();
-        $userId     = (int)Session::userId();
-        $shiftId    = (int)$this->post('shift_id', 0);
-        $activityId = (int)$this->post('activity_id', 0);
+        $userId = (int)Session::userId();
+        $shiftId = (int)$this->post('shift_id', 0);
+        $postedNote = $this->post('note', '');
+        $postedReturnTo = $this->post('return_to', '');
+        $note = is_string($postedNote) ? trim($postedNote) : '';
 
+        $shift = (new ShiftModel())->findWithDetails($shiftId);
+        if (!$shift) {
+            $this->redirect('/volunteer/activities', ['error' => 'Ca trực không tồn tại.']);
+            return;
+        }
+
+        $activityId = (int)$shift['activity_id'];
+        $volunteerPath = "/volunteer/activities/$activityId";
+        $publicPath = "/activities/$activityId";
+        $returnPath = is_string($postedReturnTo) && in_array($postedReturnTo, [$volunteerPath, $publicPath], true)
+            ? $postedReturnTo
+            : $volunteerPath;
         $regModel = new RegistrationModel();
-        $res = $regModel->register($userId, $shiftId);
+        $res = $regModel->register($userId, $shiftId, $note);
 
         if ($res['success']) {
-            $this->redirect("/volunteer/activities/$activityId", ['success' => $res['message']]);
+            $this->redirect($returnPath, ['success' => $res['message']]);
         } else {
-            $this->redirect("/volunteer/activities/$activityId", ['error' => $res['message']]);
+            $this->redirect($returnPath, ['error' => $res['message']]);
         }
     }
 }

@@ -15,11 +15,12 @@ class ConstraintValidator
      *
      * @param array $shifts Danh sách ca trực kèm kỹ năng bắt buộc và giới hạn min/max
      * @param array $volunteers Danh sách tình nguyện viên kèm kỹ năng
-     * @param array $assignments Mảng phân công: shift_id => [user_id, ...]
+     * @param array $assignments Mảng phân công từ đăng ký đã duyệt: shift_id => [user_id, ...]
+     * @param array $replacementAssignments Phân công người thay thế; các user này cần rảnh toàn ca
      * @return array [
      *   'is_valid' => bool,
      *   'violations' => array of [
-     *      'type' => 'skill'|'overlap'|'capacity',
+     *      'type' => 'skill'|'availability'|'overlap'|'capacity',
      *      'shift_id' => int,
      *      'user_id' => int|null,
      *      'message' => string
@@ -27,7 +28,12 @@ class ConstraintValidator
      *   'metrics' => array
      * ]
      */
-    public static function validate(array $shifts, array $volunteers, array $assignments): array
+    public static function validate(
+        array $shifts,
+        array $volunteers,
+        array $assignments,
+        array $replacementAssignments = []
+    ): array
     {
         $violations = [];
         $shiftMap = [];
@@ -47,6 +53,12 @@ class ConstraintValidator
         }
 
         $userAssignedShifts = []; // user_id => [shift, ...]
+
+        $replacementUsersByShift = [];
+        foreach ($replacementAssignments as $shiftId => $userIds) {
+            $replacementUsersByShift[(int)$shiftId] = array_fill_keys(array_map('intval', $userIds), true);
+            $assignments[$shiftId] = array_merge($assignments[$shiftId] ?? [], $userIds);
+        }
 
         // 1. Kiểm tra từng ca trực
         foreach ($assignments as $shiftId => $userIds) {
@@ -115,7 +127,28 @@ class ConstraintValidator
                     }
                 }
 
-                // Registered volunteers are not required to declare full-shift availability.
+                if (isset($replacementUsersByShift[$shiftId][$uid])) {
+                    $isAvailable = false;
+                    foreach ($vol['availability'] ?? [] as $period) {
+                        if (
+                            ($period['date'] ?? null) === $shift['date']
+                            && ($period['time_start'] ?? '') <= $shift['time_start']
+                            && ($period['time_end'] ?? '') >= $shift['time_end']
+                        ) {
+                            $isAvailable = true;
+                            break;
+                        }
+                    }
+                    if (!$isAvailable) {
+                        $violations[] = [
+                            'type' => 'availability',
+                            'shift_id' => $shiftId,
+                            'user_id' => $uid,
+                            'message' => "TNV {$vol['full_name']} (ID $uid) không khai báo rảnh toàn bộ ca thay thế '{$shift['name']}'."
+                        ];
+                    }
+                }
+
                 // Save shifts to check for overlapping assignments.
                 $userAssignedShifts[$uid][] = $shift;
             }

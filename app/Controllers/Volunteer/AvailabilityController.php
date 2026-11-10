@@ -25,11 +25,13 @@ class AvailabilityController extends Controller
     public function index(): void
     {
         $userId = (int)Session::userId();
-        $availabilities = $this->availModel->getByUser($userId);
+        $page = max(1, (int)$this->get('page', 1));
+        $result = $this->availModel->getByUserPage($userId, $page, $this->getPageSize(15));
 
         $this->render('volunteer.availability', [
             'title'          => 'Khai Báo Lịch Rảnh | VolunteerHub',
-            'availabilities' => $availabilities,
+            'availabilities' => $result['data'],
+            'pagination'     => $result,
             'csrfToken'      => Session::generateCsrf(),
             'success'        => Session::getFlash('success'),
             'error'          => Session::getFlash('error'),

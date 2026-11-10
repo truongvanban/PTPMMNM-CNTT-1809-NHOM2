@@ -31,11 +31,32 @@ class ShiftController extends Controller
     public function available(): void
     {
         $userId = (int)Session::userId();
-        $shifts = $this->shiftModel->getAvailableForVolunteer($userId);
+        $page = max(1, (int)$this->get('page', 1));
+        $activityId = filter_var($this->get('activity_id', 0), FILTER_VALIDATE_INT);
+        $skillId = filter_var($this->get('skill_id', 0), FILTER_VALIDATE_INT);
+        $activityId = $activityId !== false && $activityId > 0 ? $activityId : 0;
+        $skillId = $skillId !== false && $skillId > 0 ? $skillId : 0;
+        $result = $this->shiftModel->getAvailableForVolunteer(
+            $userId,
+            $page,
+            $this->getPageSize(15),
+            $activityId,
+            $skillId
+        );
 
         $this->render('volunteer.shifts', [
             'title'     => 'Ca Trực Có Thể Đăng Ký | VolunteerHub',
-            'shifts'    => $shifts,
+            'shifts'    => $result['data'],
+            'pagination'=> array_merge($result, [
+                'params' => [
+                    'activity_id' => $activityId ?: '',
+                    'skill_id' => $skillId ?: '',
+                ],
+            ]),
+            'activities' => $this->shiftModel->getAvailableActivityFilters(),
+            'requiredSkills' => $this->shiftModel->getAvailableRequiredSkillFilters(),
+            'activityId' => $activityId,
+            'skillId' => $skillId,
             'csrfToken' => Session::generateCsrf(),
             'success'   => Session::getFlash('success'),
             'error'     => Session::getFlash('error'),
@@ -47,7 +68,8 @@ class ShiftController extends Controller
         $this->verifyCsrf();
         $userId = (int)Session::userId();
         $shiftId = (int)$this->post('shift_id', 0);
-        $note = trim($this->post('note', ''));
+        $postedNote = $this->post('note', '');
+        $note = is_string($postedNote) ? trim($postedNote) : '';
 
         $res = $this->regModel->register($userId, $shiftId, $note);
         if ($res['success']) {
@@ -74,11 +96,35 @@ class ShiftController extends Controller
     public function myRegistrations(): void
     {
         $userId = (int)Session::userId();
-        $registrations = $this->regModel->getByUser($userId);
+        $page = max(1, (int)$this->get('page', 1));
+        $allowedStatuses = ['', 'pending', 'approved', 'rejected'];
+        $requestedStatus = $this->get('status', '');
+        $status = is_string($requestedStatus) && in_array($requestedStatus, $allowedStatuses, true)
+            ? $requestedStatus
+            : '';
+        $requestedKeyword = $this->get('q', '');
+        $keyword = is_string($requestedKeyword) ? trim(mb_substr($requestedKeyword, 0, 100)) : '';
+        $requestedSort = $this->get('sort', 'recent');
+        $sort = is_string($requestedSort) && in_array($requestedSort, ['recent', 'oldest', 'event'], true)
+            ? $requestedSort
+            : 'recent';
+        $result = $this->regModel->getByUserPage(
+            $userId,
+            $page,
+            $this->getPageSize(15),
+            $status,
+            $keyword,
+            $sort
+        );
 
         $this->render('volunteer.my_registrations', [
             'title'         => 'Ca Đã Đăng Ký | VolunteerHub',
-            'registrations' => $registrations,
+            'registrations' => $result['data'],
+            'pagination'    => $result,
+            'status'        => $status,
+            'keyword'       => $keyword,
+            'sort'          => $sort,
+            'statusCounts'  => $result['status_counts'],
             'csrfToken'     => Session::generateCsrf(),
             'success'       => Session::getFlash('success'),
             'error'         => Session::getFlash('error'),
@@ -88,11 +134,18 @@ class ShiftController extends Controller
     public function schedule(): void
     {
         $userId = (int)Session::userId();
-        $assignments = $this->asgnModel->getByUser($userId);
+        $requestedMonth = $this->get('month', '');
+        $month = is_string($requestedMonth) && preg_match('/^\d{4}-\d{2}$/', $requestedMonth)
+            ? \DateTimeImmutable::createFromFormat('!Y-m', $requestedMonth)
+            : false;
+        if ($month === false || $month->format('Y-m') !== $requestedMonth) {
+            $month = new \DateTimeImmutable('first day of this month');
+        }
 
         $this->render('volunteer.schedule', [
             'title'       => 'Lịch Phân Công Cá Nhân | VolunteerHub',
-            'assignments' => $assignments,
+            'assignments' => $this->asgnModel->getByUser($userId, true),
+            'selectedMonth' => $month->format('Y-m'),
             'csrfToken'   => Session::generateCsrf(),
             'success'     => Session::getFlash('success'),
             'error'       => Session::getFlash('error'),

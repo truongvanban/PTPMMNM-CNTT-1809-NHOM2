@@ -34,14 +34,15 @@ class AssignmentModel extends BaseModel
         return $stmt->fetchAll();
     }
 
-    public function getApprovedRegisteredVolunteersForShift(int $shiftId): array
+    public function getApprovedRegisteredVolunteersForShift(int $shiftId, int $page = 1, int $perPage = 15): array
     {
-        $stmt = $this->db->prepare(
+        $candidateSql =
             "SELECT u.id, u.full_name, u.email, u.phone, vp.student_id,
                     (SELECT COUNT(*) FROM assignments asgn
                      WHERE asgn.user_id = u.id AND asgn.status IN ('assigned','confirmed')) as current_shifts,
                     GROUP_CONCAT(DISTINCT sk.name ORDER BY sk.name SEPARATOR ', ') as skills
              FROM registrations reg
+             INNER JOIN shifts target ON target.id = reg.shift_id
              INNER JOIN users u ON u.id = reg.user_id AND u.status = 'active'
              INNER JOIN user_roles ur ON ur.user_id = u.id
              INNER JOIN roles r ON r.id = ur.role_id AND r.name = 'volunteer'
@@ -55,30 +56,130 @@ class AssignmentModel extends BaseModel
                      AND existing.user_id = reg.user_id
                      AND existing.status NOT IN ('removed', 'replaced')
                )
-             GROUP BY u.id
-             ORDER BY u.full_name ASC"
-        );
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM shift_required_skills required
+                   WHERE required.shift_id = target.id
+                     AND required.is_mandatory = 1
+                     AND NOT EXISTS (
+                         SELECT 1 FROM volunteer_skills matching
+                         WHERE matching.user_id = u.id
+                           AND matching.skill_id = required.skill_id
+                     )
+               )
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM assignments conflict_assignment
+                   INNER JOIN shifts conflict_shift ON conflict_shift.id = conflict_assignment.shift_id
+                   WHERE conflict_assignment.user_id = u.id
+                     AND conflict_assignment.status NOT IN ('removed', 'replaced', 'absent')
+                     AND conflict_assignment.shift_id != target.id
+                     AND conflict_shift.date = target.date
+                     AND conflict_shift.time_start < target.time_end
+                     AND conflict_shift.time_end > target.time_start
+               )
+             GROUP BY u.id";
+
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM ($candidateSql) eligible_volunteers");
+        $countStmt->execute([$shiftId]);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
+        $stmt = $this->db->prepare("$candidateSql ORDER BY u.full_name ASC $limitSql");
         $stmt->execute([$shiftId]);
-        return $stmt->fetchAll();
+        $data = $stmt->fetchAll();
+        return [
+            'data' => $data,
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+            'visible_count' => count($data),
+        ];
     }
 
-    public function getByUser(int $userId): array
+    public function getByUser(int $userId, bool $includeRemoved = false): array
     {
+        $statusFilter = $includeRemoved
+            ? "a.status <> 'replaced'"
+            : "a.status NOT IN ('removed', 'replaced')";
         $stmt = $this->db->prepare(
-            "SELECT a.*, s.name as shift_name, s.date as shift_date, s.time_start, s.time_end,
+            "SELECT a.*, a.status as assignment_status,
+                    s.name as shift_name, s.date as shift_date, s.time_start, s.time_end,
                     act.title as activity_title, act.location as activity_location, act.id as activity_id,
+                    coord.full_name as coordinator_name, coord.email as coordinator_email, coord.phone as coordinator_phone,
                     att.status as attendance_status, att.id as attendance_id,
-                    rr.id as replacement_request_id, rr.status as replacement_status
+                    rr.id as replacement_request_id, rr.status as replacement_status,
+                    rr.reason as replacement_reason, rr.coordinator_note as replacement_coordinator_note
              FROM assignments a
              JOIN shifts s ON a.shift_id = s.id
              JOIN activities act ON s.activity_id = act.id
+             JOIN users coord ON coord.id = act.coordinator_id
              LEFT JOIN attendance att ON att.assignment_id = a.id
-             LEFT JOIN replacement_requests rr ON rr.assignment_id = a.id AND rr.status = 'pending'
-             WHERE a.user_id = ? AND a.status NOT IN ('removed', 'replaced')
+             LEFT JOIN replacement_requests rr
+                    ON rr.assignment_id = a.id
+                   AND rr.requester_id = a.user_id
+                   AND rr.id = (
+                       SELECT MAX(rr_latest.id)
+                       FROM replacement_requests rr_latest
+                       WHERE rr_latest.assignment_id = a.id
+                         AND rr_latest.requester_id = a.user_id
+                   )
+             WHERE a.user_id = ? AND $statusFilter
              ORDER BY s.date ASC, s.time_start ASC"
         );
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
+    }
+
+    public function getByUserPage(int $userId, int $page = 1, int $perPage = 15): array
+    {
+        $countStmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM assignments WHERE user_id = ? AND status NOT IN ('removed', 'replaced')"
+        );
+        $countStmt->execute([$userId]);
+        $total = (int)$countStmt->fetchColumn();
+        $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
+        $page = min(max(1, $page), $lastPage);
+        $offset = ($page - 1) * $perPage;
+        $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
+        $stmt = $this->db->prepare(
+            "SELECT a.*, a.status as assignment_status,
+                    s.name as shift_name, s.date as shift_date, s.time_start, s.time_end,
+                    act.title as activity_title, act.location as activity_location, act.id as activity_id,
+                    coord.full_name as coordinator_name, coord.email as coordinator_email, coord.phone as coordinator_phone,
+                    att.status as attendance_status, att.id as attendance_id,
+                    rr.id as replacement_request_id, rr.status as replacement_status,
+                    rr.reason as replacement_reason, rr.coordinator_note as replacement_coordinator_note
+             FROM assignments a
+             JOIN shifts s ON a.shift_id = s.id
+             JOIN activities act ON s.activity_id = act.id
+             JOIN users coord ON coord.id = act.coordinator_id
+             LEFT JOIN attendance att ON att.assignment_id = a.id
+             LEFT JOIN replacement_requests rr
+                    ON rr.assignment_id = a.id
+                   AND rr.requester_id = a.user_id
+                   AND rr.id = (
+                       SELECT MAX(rr_latest.id)
+                       FROM replacement_requests rr_latest
+                       WHERE rr_latest.assignment_id = a.id
+                         AND rr_latest.requester_id = a.user_id
+                   )
+             WHERE a.user_id = ? AND a.status NOT IN ('removed', 'replaced')
+             ORDER BY s.date ASC, s.time_start ASC $limitSql"
+        );
+        $stmt->execute([$userId]);
+        $data = $stmt->fetchAll();
+        return [
+            'data' => $data,
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+            'visible_count' => count($data),
+        ];
     }
 
     public function countActiveByUser(int $userId): int
@@ -146,6 +247,24 @@ class AssignmentModel extends BaseModel
         try {
             $this->db->beginTransaction();
 
+            $shiftLockStmt = $this->db->prepare(
+                "SELECT s.id, s.status AS shift_status, a.status AS activity_status
+                 FROM shifts s
+                 JOIN activities a ON a.id = s.activity_id
+                 WHERE s.id = ?
+                 FOR UPDATE"
+            );
+            $shiftLockStmt->execute([$shiftId]);
+            $lockedShift = $shiftLockStmt->fetch();
+            if (
+                !$lockedShift
+                || $lockedShift['shift_status'] !== 'open'
+                || !in_array($lockedShift['activity_status'], ['open', 'ongoing'], true)
+            ) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Không thể thêm người vào ca hoặc hoạt động đã đóng.'];
+            }
+
             $volunteerStmt = $this->db->prepare(
                 "SELECT u.id
                  FROM users u
@@ -153,6 +272,7 @@ class AssignmentModel extends BaseModel
                  INNER JOIN roles r ON r.id = ur.role_id AND r.name = 'volunteer'
                  WHERE u.id = ? AND u.status = 'active'
                  LIMIT 1"
+                 . " FOR UPDATE"
             );
             $volunteerStmt->execute([$userId]);
             if (!$volunteerStmt->fetchColumn()) {
@@ -163,7 +283,8 @@ class AssignmentModel extends BaseModel
             $registrationStmt = $this->db->prepare(
                 "SELECT id FROM registrations
                  WHERE shift_id = ? AND user_id = ? AND status = 'approved'
-                 LIMIT 1"
+                 LIMIT 1
+                 FOR UPDATE"
             );
             $registrationStmt->execute([$shiftId, $userId]);
             if (!$registrationStmt->fetchColumn()) {
@@ -173,7 +294,9 @@ class AssignmentModel extends BaseModel
 
             // 1. Khóa hàng và kiểm tra số người hiện tại (Concurrency control)
             $countStmt = $this->db->prepare(
-                "SELECT COUNT(*) FROM assignments WHERE shift_id = ? AND status NOT IN ('removed', 'replaced') FOR UPDATE"
+                "SELECT COUNT(*) FROM assignments
+                 WHERE shift_id = ? AND status NOT IN ('removed', 'replaced', 'absent')
+                 FOR UPDATE"
             );
             $countStmt->execute([$shiftId]);
             $currentAssigned = (int)$countStmt->fetchColumn();
@@ -197,7 +320,9 @@ class AssignmentModel extends BaseModel
 
             // 3. Kiểm tra kỹ năng bắt buộc
             $reqSkills = $shiftModel->getRequiredSkills($shiftId);
-            $userSkillStmt = $this->db->prepare("SELECT skill_id FROM volunteer_skills WHERE user_id = ?");
+            $userSkillStmt = $this->db->prepare(
+                "SELECT skill_id FROM volunteer_skills WHERE user_id = ? FOR UPDATE"
+            );
             $userSkillStmt->execute([$userId]);
             $userSkillIds = $userSkillStmt->fetchAll(PDO::FETCH_COLUMN);
 
@@ -208,13 +333,14 @@ class AssignmentModel extends BaseModel
                 }
             }
 
-            // 4. Kiểm tra xung đột lịch
+            // Đơn đăng ký đã duyệt xác nhận người đăng ký có thể tham gia ca này.
+            // Vẫn kiểm tra các phân công hiện có để ngăn trùng lịch.
             if ($shiftModel->hasTimeConflict($userId, $shiftId)) {
                 $this->db->rollBack();
                 return ['success' => false, 'message' => 'Tình nguyện viên bị trùng lịch với một ca trực khác cùng thời điểm.'];
             }
 
-            // 5. Thêm hoặc cập nhật bản ghi phân công
+            // 6. Thêm hoặc cập nhật bản ghi phân công
             $assignmentId = 0;
             if ($existing) {
                 $this->db->prepare(
@@ -231,7 +357,8 @@ class AssignmentModel extends BaseModel
             // 6. Tạo bản ghi attendance
             $this->db->prepare(
                 "INSERT INTO attendance (assignment_id, user_id, shift_id, status) VALUES (?, ?, ?, 'pending')
-                 ON DUPLICATE KEY UPDATE status = 'pending', updated_at = NOW()"
+                 ON DUPLICATE KEY UPDATE status = 'pending', confirmed_at = NULL,
+                     hours_worked = NULL, note = NULL, updated_at = NOW()"
             )->execute([$assignmentId, $userId, $shiftId]);
 
             // 7. Ghi lịch sử phân công
@@ -257,10 +384,95 @@ class AssignmentModel extends BaseModel
             $this->db->commit();
             return ['success' => true, 'message' => 'Đã thêm phân công tình nguyện viên thành công!'];
 
-        } catch (Exception $e) {
-            $this->db->rollBack();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log('[ManualAdd Error] ' . $e->getMessage());
-            return ['success' => false, 'message' => 'Lỗi hệ thống: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Không thể thêm phân công. Vui lòng thử lại.'];
+        }
+    }
+
+    public function removeExpiredUnconfirmed(): int
+    {
+        $removedCount = 0;
+
+        while (true) {
+            try {
+                $this->db->beginTransaction();
+                $stmt = $this->db->query(
+                    "SELECT a.id AS assignment_id, a.user_id, a.assigned_at,
+                            COALESCE(a.assigned_by, act.coordinator_id) AS changed_by,
+                            s.id AS shift_id, s.name AS shift_name, s.date AS shift_date,
+                            s.time_start, s.time_end, act.title AS activity_title,
+                            act.coordinator_id, u.full_name AS volunteer_name
+                     FROM assignments a
+                     JOIN shifts s ON s.id = a.shift_id
+                     JOIN activities act ON act.id = s.activity_id
+                     JOIN users u ON u.id = a.user_id
+                     LEFT JOIN attendance att ON att.assignment_id = a.id
+                     WHERE a.status = 'assigned'
+                       AND COALESCE(att.status, 'pending') = 'pending'
+                       AND a.assigned_at <= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                     ORDER BY a.assigned_at ASC, a.id ASC
+                     LIMIT 1
+                     FOR UPDATE"
+                );
+                $assignment = $stmt->fetch();
+
+                if (!$assignment) {
+                    $this->db->commit();
+                    return $removedCount;
+                }
+
+                $updateStmt = $this->db->prepare(
+                    "UPDATE assignments SET status = 'removed', updated_at = NOW()
+                     WHERE id = ? AND status = 'assigned'"
+                );
+                $updateStmt->execute([(int)$assignment['assignment_id']]);
+                if ($updateStmt->rowCount() !== 1) {
+                    $this->db->commit();
+                    continue;
+                }
+
+                $this->db->prepare(
+                    "INSERT INTO assignment_history (assignment_id, changed_by, action, old_data, note)
+                     VALUES (?, ?, 'remove', ?, ?)"
+                )->execute([
+                    (int)$assignment['assignment_id'],
+                    (int)$assignment['changed_by'],
+                    json_encode($assignment),
+                    'Tự động gỡ do tình nguyện viên chưa xác nhận sau 24 giờ'
+                ]);
+
+                $date = date('d/m/Y', strtotime($assignment['shift_date']));
+                $time = substr($assignment['time_start'], 0, 5) . ' - ' . substr($assignment['time_end'], 0, 5);
+                $message = "Phân công ca '{$assignment['shift_name']}' thuộc hoạt động '{$assignment['activity_title']}' ngày {$date} ({$time}) đã bị gỡ vì bạn chưa xác nhận trong vòng 24 giờ.";
+                $notificationStmt = $this->db->prepare(
+                    "INSERT INTO notifications (user_id, type, title, message, link)
+                     VALUES (?, 'assignment', ?, ?, ?)"
+                );
+                $notificationStmt->execute([
+                    (int)$assignment['user_id'],
+                    'Phân công đã hết hạn xác nhận',
+                    $message,
+                    '/volunteer/my-registrations'
+                ]);
+                $notificationStmt->execute([
+                    (int)$assignment['coordinator_id'],
+                    'Tình nguyện viên chưa xác nhận phân công',
+                    "{$assignment['volunteer_name']} chưa xác nhận ca '{$assignment['shift_name']}' thuộc hoạt động '{$assignment['activity_title']}' trong vòng 24 giờ. Hệ thống đã gỡ phân công để bạn có thể chọn người khác.",
+                    '/coordinator/assignment/manual/' . (int)$assignment['shift_id']
+                ]);
+
+                $this->db->commit();
+                $removedCount++;
+            } catch (\Throwable $e) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+                throw $e;
+            }
         }
     }
 
@@ -269,20 +481,36 @@ class AssignmentModel extends BaseModel
      */
     public function manualRemove(int $assignmentId, int $changedBy, string $note = ''): array
     {
-        $stmt = $this->db->prepare("SELECT a.*, s.name as shift_name FROM assignments a JOIN shifts s ON a.shift_id = s.id WHERE a.id = ? LIMIT 1");
-        $stmt->execute([$assignmentId]);
-        $assignment = $stmt->fetch();
-
-        if (!$assignment || in_array($assignment['status'], ['removed', 'replaced'], true)) {
-            return ['success' => false, 'message' => 'Phân công không tồn tại hoặc đã bị gỡ.'];
-        }
-
         try {
             $this->db->beginTransaction();
 
-            $this->db->prepare(
-                "UPDATE assignments SET status = 'removed', updated_at = NOW() WHERE id = ?"
-            )->execute([$assignmentId]);
+            $stmt = $this->db->prepare(
+                "SELECT a.*, s.name AS shift_name, s.date AS shift_date,
+                        s.time_start, s.time_end, act.title AS activity_title
+                 FROM assignments a
+                 JOIN shifts s ON s.id = a.shift_id
+                 JOIN activities act ON act.id = s.activity_id
+                 WHERE a.id = ?
+                 LIMIT 1
+                 FOR UPDATE"
+            );
+            $stmt->execute([$assignmentId]);
+            $assignment = $stmt->fetch();
+
+            if (!$assignment || in_array($assignment['status'], ['removed', 'replaced'], true)) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Phân công không tồn tại hoặc đã bị gỡ.'];
+            }
+
+            $updateStmt = $this->db->prepare(
+                "UPDATE assignments SET status = 'removed', updated_at = NOW()
+                 WHERE id = ? AND status NOT IN ('removed', 'replaced')"
+            );
+            $updateStmt->execute([$assignmentId]);
+            if ($updateStmt->rowCount() !== 1) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Phân công không tồn tại hoặc đã bị gỡ.'];
+            }
 
             // Ghi lịch sử
             $this->db->prepare(
@@ -299,15 +527,22 @@ class AssignmentModel extends BaseModel
             $this->db->prepare(
                 "INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, 'assignment', ?, ?, '/volunteer/schedule')"
             )->execute([
-                $assignment['user_id'],
+                (int)$assignment['user_id'],
                 'Thay đổi phân công ca trực',
-                "Bạn đã được rút khỏi ca trực '{$assignment['shift_name']}'."
+                "Điều phối viên đã gỡ bạn khỏi ca '{$assignment['shift_name']}' thuộc hoạt động '{$assignment['activity_title']}' vào ngày "
+                    . date('d/m/Y', strtotime($assignment['shift_date'])) . ' ('
+                    . substr($assignment['time_start'], 0, 5) . ' - '
+                    . substr($assignment['time_end'], 0, 5) . ').'
+                    . ($note !== '' ? " Lý do: {$note}" : '')
             ]);
 
             $this->db->commit();
             return ['success' => true, 'message' => 'Đã gỡ tình nguyện viên khỏi ca thành công.'];
         } catch (Exception $e) {
-            $this->db->rollBack();
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log('[ManualRemove Error] ' . $e->getMessage());
             return ['success' => false, 'message' => 'Lỗi: ' . $e->getMessage()];
         }
     }
@@ -317,17 +552,48 @@ class AssignmentModel extends BaseModel
      */
     public function confirmAttendance(int $assignmentId, int $userId): array
     {
-        $stmt = $this->db->prepare("SELECT * FROM assignments WHERE id = ? AND user_id = ? LIMIT 1");
-        $stmt->execute([$assignmentId, $userId]);
-        $assignment = $stmt->fetch();
+        $shiftModel = new ShiftModel();
+        try {
+            $this->db->beginTransaction();
+            $stmt = $this->db->prepare(
+                "SELECT a.*, s.id AS shift_id
+                 FROM assignments a
+                 JOIN shifts s ON s.id = a.shift_id
+                 WHERE a.id = ? AND a.user_id = ?
+                 LIMIT 1
+                 FOR UPDATE"
+            );
+            $stmt->execute([$assignmentId, $userId]);
+            $assignment = $stmt->fetch();
 
-        if (!$assignment) {
-            return ['success' => false, 'message' => 'Không tìm thấy phân công.'];
+            if (!$assignment || $assignment['status'] !== 'assigned') {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Không tìm thấy phân công đang chờ xác nhận.'];
+            }
+
+            $this->db->prepare("SELECT id FROM shifts WHERE id = ? FOR UPDATE")
+                ->execute([(int)$assignment['shift_id']]);
+            if ($shiftModel->hasTimeConflict($userId, (int)$assignment['shift_id'])) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Bạn đã có ca trực khác bị trùng giờ. Vui lòng liên hệ điều phối viên.'];
+            }
+
+            $this->db->prepare(
+                "UPDATE assignments SET status = 'confirmed', updated_at = NOW()
+                 WHERE id = ? AND user_id = ? AND status = 'assigned'"
+            )->execute([$assignmentId, $userId]);
+            $this->db->prepare(
+                "UPDATE attendance SET status = 'confirmed', confirmed_at = NOW(), updated_at = NOW()
+                 WHERE assignment_id = ?"
+            )->execute([$assignmentId]);
+            $this->db->commit();
+
+            return ['success' => true, 'message' => 'Đã xác nhận tham gia ca trực thành công!'];
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
         }
-
-        $this->db->prepare("UPDATE assignments SET status = 'confirmed', updated_at = NOW() WHERE id = ?")->execute([$assignmentId]);
-        $this->db->prepare("UPDATE attendance SET status = 'confirmed', confirmed_at = NOW(), updated_at = NOW() WHERE assignment_id = ?")->execute([$assignmentId]);
-
-        return ['success' => true, 'message' => 'Đã xác nhận tham gia ca trực thành công!'];
     }
 }

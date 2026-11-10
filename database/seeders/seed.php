@@ -459,7 +459,7 @@ $notifStmt->execute([
     $volunteerIds[0], 'assignment',
     'Bạn đã được phân công vào Ca trực',
     'Bạn được phân công vào ca "Hỗ Trợ Y Tế Buổi Sáng" ngày ' . $baseDate . '. Vui lòng xác nhận tham gia.',
-    '/volunteer/assignments',
+    '/volunteer/schedule',
     0
 ]);
 

@@ -3,6 +3,7 @@
  * Layout cho trang Đăng nhập / Đăng ký
  */
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
+$styleVersion = filemtime(dirname(__DIR__, 3) . '/public/assets/css/style.css');
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -12,7 +13,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
     <title><?= htmlspecialchars($title ?? 'Xác Thực | VolunteerHub') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/style.css">
+    <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/style.css?v=<?= $styleVersion ?>">
 </head>
 <body class="auth-body">
     <main class="auth-shell">

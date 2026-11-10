@@ -5,6 +5,7 @@
 use App\Core\Session;
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
 $mainJsVersion = filemtime(dirname(__DIR__, 3) . '/public/assets/js/main.js');
+$styleVersion = filemtime(dirname(__DIR__, 3) . '/public/assets/css/style.css');
 $currentUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $userName = Session::userName();
 ?>
@@ -16,7 +17,7 @@ $userName = Session::userName();
     <title><?= htmlspecialchars($title ?? 'Quản Trị Viên | VolunteerHub') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/style.css">
+    <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/style.css?v=<?= $styleVersion ?>">
 </head>
 <body>
     <!-- Topbar -->
@@ -77,7 +78,7 @@ $userName = Session::userName();
         </aside>
 
         <!-- Main Content Area -->
-        <main class="main-content">
+        <main class="main-content admin-main-content">
             <?php if (!empty($success)): ?>
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <i class="bi bi-check-circle-fill me-2"></i><?= htmlspecialchars($success) ?>

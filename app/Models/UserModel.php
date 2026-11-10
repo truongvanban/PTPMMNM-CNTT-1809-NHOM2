@@ -156,7 +156,7 @@ class UserModel extends BaseModel
 
     public function changeRole(int $userId, int $roleId, string $action): bool
     {
-        if (!in_array($action, ['add', 'remove'], true)) {
+        if ($action !== 'replace') {
             return false;
         }
 
@@ -179,49 +179,37 @@ class UserModel extends BaseModel
             }
 
             $currentRoleStmt = $this->db->prepare(
-                "SELECT role_id FROM user_roles WHERE user_id = ? AND role_id = ? FOR UPDATE"
+                "SELECT role_id FROM user_roles WHERE user_id = ? FOR UPDATE"
             );
-            $currentRoleStmt->execute([$userId, $roleId]);
-            $hasRole = (bool)$currentRoleStmt->fetchColumn();
+            $currentRoleStmt->execute([$userId]);
+            $currentRoleIds = array_map('intval', $currentRoleStmt->fetchAll(\PDO::FETCH_COLUMN));
+            $hasRole = in_array($roleId, $currentRoleIds, true);
 
-            if ($action === 'add') {
-                if ($hasRole) {
-                    $this->db->rollBack();
-                    return false;
-                }
-                $this->db->prepare(
-                    "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)"
-                )->execute([$userId, $roleId]);
-            } else {
-                if (!$hasRole) {
-                    $this->db->rollBack();
-                    return false;
-                }
-
-                $countStmt = $this->db->prepare(
-                    "SELECT COUNT(*) FROM user_roles WHERE user_id = ? FOR UPDATE"
-                );
-                $countStmt->execute([$userId]);
-                if ((int)$countStmt->fetchColumn() <= 1) {
-                    throw new \DomainException('Mỗi tài khoản phải có ít nhất một vai trò.');
-                }
-
-                if ($role['name'] === 'admin') {
-                    $adminCountStmt = $this->db->prepare(
-                        "SELECT COUNT(*) FROM user_roles ur
-                         INNER JOIN roles r ON r.id = ur.role_id
-                         WHERE r.name = 'admin' FOR UPDATE"
-                    );
-                    $adminCountStmt->execute();
-                    if ((int)$adminCountStmt->fetchColumn() <= 1) {
-                        throw new \DomainException('Không thể gỡ vai trò quản trị viên cuối cùng.');
-                    }
-                }
-
-                $this->db->prepare(
-                    "DELETE FROM user_roles WHERE user_id = ? AND role_id = ?"
-                )->execute([$userId, $roleId]);
+            if ($role['name'] === 'admin' && !$hasRole) {
+                $this->db->rollBack();
+                return false;
             }
+
+            if (in_array($roleId, $currentRoleIds, true) && count($currentRoleIds) === 1) {
+                $this->db->commit();
+                return true;
+            }
+
+            if (in_array('admin', $this->getRoleNames($currentRoleIds), true) && $role['name'] !== 'admin') {
+                $adminStmt = $this->db->query(
+                    "SELECT ur.user_id FROM user_roles ur
+                     INNER JOIN roles r ON r.id = ur.role_id
+                     WHERE r.name = 'admin' FOR UPDATE"
+                );
+                if (count($adminStmt->fetchAll()) <= 1) {
+                    throw new \DomainException('Không thể gỡ vai trò quản trị viên cuối cùng.');
+                }
+            }
+
+            $this->db->prepare("DELETE FROM user_roles WHERE user_id = ?")->execute([$userId]);
+            $this->db->prepare(
+                "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)"
+            )->execute([$userId, $roleId]);
 
             $this->db->commit();
             return true;
@@ -231,6 +219,18 @@ class UserModel extends BaseModel
             }
             throw $e;
         }
+    }
+
+    private function getRoleNames(array $roleIds): array
+    {
+        if (!$roleIds) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($roleIds), '?'));
+        $stmt = $this->db->prepare("SELECT name FROM roles WHERE id IN ($placeholders)");
+        $stmt->execute($roleIds);
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
     }
 
     /**

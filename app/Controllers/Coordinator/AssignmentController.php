@@ -95,6 +95,22 @@ class AssignmentController extends Controller
         }
 
         $metrics = json_decode($runDetails['result_summary'] ?? '{}', true);
+        $inputSnapshot = json_decode($runDetails['input_snapshot'] ?? '{}', true);
+        $pendingRegistrationCounts = is_array($inputSnapshot)
+            ? ($inputSnapshot['pending_registration_counts'] ?? [])
+            : [];
+        if (!is_array($pendingRegistrationCounts)) {
+            $pendingRegistrationCounts = [];
+        }
+        $unassignedRegistrants = is_array($inputSnapshot)
+            ? $this->assignmentService->getUnassignedRegistrants($inputSnapshot, $runDetails['items'])
+            : [];
+        $registrationsChanged = $runDetails['status'] !== 'confirmed'
+            && $this->assignmentService->haveApprovedRegistrationsChanged($runDetails);
+        foreach ($runDetails['items'] as &$item) {
+            $item['unassigned_users_list'] = $unassignedRegistrants[(int)$item['shift_id']] ?? [];
+        }
+        unset($item);
 
         // Lấy thông tin user cho từng ca để hiển thị chi tiết tên TNV
         $db = Database::getInstance();
@@ -119,6 +135,8 @@ class AssignmentController extends Controller
             'title'      => 'Xem Trước Phương Án Phân Công | VolunteerHub',
             'run'        => $runDetails,
             'metrics'    => $metrics,
+            'pendingRegistrationCounts' => $pendingRegistrationCounts,
+            'registrationsChanged' => $registrationsChanged,
             'csrfToken'  => Session::generateCsrf(),
             'success'    => Session::getFlash('success'),
             'error'      => Session::getFlash('error'),
@@ -144,6 +162,14 @@ class AssignmentController extends Controller
             return;
         }
 
+        if ($this->assignmentService->haveApprovedRegistrationsChanged($runDetails)) {
+            $this->redirect(
+                "/coordinator/assignment/preview/{$rId}",
+                ['error' => 'Danh sách đơn đã duyệt đã thay đổi sau lần chạy này. Vui lòng chạy lại thuật toán trước khi xác nhận.']
+            );
+            return;
+        }
+
         $res = $this->assignmentService->confirmRun($rId, $coordId);
         if ($res['success']) {
             $this->redirect("/coordinator/assignment/preview/{$rId}", ['success' => $res['message']]);
@@ -166,14 +192,20 @@ class AssignmentController extends Controller
         $assignedList = $this->assignmentModel->getByShift($sId);
         $requiredSkills = $this->shiftModel->getRequiredSkills($sId);
 
-        $availableVolunteers = $this->assignmentModel->getApprovedRegisteredVolunteersForShift($sId);
+        $candidatePage = max(1, (int)$this->get('page', 1));
+        $candidateResult = $this->assignmentModel->getApprovedRegisteredVolunteersForShift(
+            $sId,
+            $candidatePage,
+            $this->getPageSize(15)
+        );
 
         $this->render('coordinator.assignment.manual', [
             'title'               => 'Điều Chỉnh Phân Công: ' . $shift['name'],
             'shift'               => $shift,
             'assignedList'        => $assignedList,
             'requiredSkills'      => $requiredSkills,
-            'availableVolunteers' => $availableVolunteers,
+            'availableVolunteers' => $candidateResult['data'],
+            'candidatePagination' => $candidateResult,
             'csrfToken'           => Session::generateCsrf(),
             'success'             => Session::getFlash('success'),
             'error'               => Session::getFlash('error'),

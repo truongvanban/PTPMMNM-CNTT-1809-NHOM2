@@ -28,12 +28,14 @@ class ReplacementController extends Controller
     public function index(): void
     {
         $userId = (int)Session::userId();
-        $requests = $this->replacementModel->getByUser($userId);
+        $page = max(1, (int)$this->get('page', 1));
+        $result = $this->replacementModel->getByUserPage($userId, $page, $this->getPageSize(15));
         $myAssignments = $this->asgnModel->getByUser($userId);
 
         $this->render('volunteer.replacement', [
             'title'         => 'Báo Vắng & Thay Người | VolunteerHub',
-            'requests'      => $requests,
+            'requests'      => $result['data'],
+            'pagination'    => $result,
             'myAssignments' => $myAssignments,
             'csrfToken'     => Session::generateCsrf(),
             'success'       => Session::getFlash('success'),

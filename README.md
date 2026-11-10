@@ -6,7 +6,7 @@
 [![Database](https://img.shields.io/badge/MariaDB-10.4-003545.svg)](https://mariadb.org)
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-7952b3.svg)](https://getbootstrap.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-8%20Passed%20(100%25)-success.svg)](tests/run_tests.php)
+[![Tests](https://img.shields.io/badge/Tests-9%20Passed%20(100%25)-success.svg)](tests/run_tests.php)
 
 ---
 
@@ -15,7 +15,7 @@
 **VolunteerHub** là hệ thống web mã nguồn mở được thiết kế cho các trường đại học, câu lạc bộ hoặc tổ chức thiện nguyện nhằm giải quyết bài toán:
 - Quản lý hồ sơ, kỹ năng và lịch rảnh của tình nguyện viên (TNV).
 - Quản lý hoạt động và các ca trực với chỉ tiêu số lượng và yêu cầu chuyên môn.
-- **Tự động đề xuất phân công ca trực** bằng thuật toán tối ưu **Improved Greedy (Most Constrained First & Workload Balancing)**, đảm bảo 0 vi phạm ràng buộc cứng (kỹ năng bắt buộc, lịch rảnh trọn ca, không chồng lấn thời gian, giới hạn ca).
+- **Tự động đề xuất phân công ca trực** bằng thuật toán **Improved Greedy (Most Constrained First & Workload Balancing)**, với ràng buộc kỹ năng, lịch rảnh phù hợp theo nguồn ứng viên, không chồng lấn và giới hạn số lượng.
 - Xử lý quy trình báo vắng đột xuất và tự động gợi ý ứng viên thay thế phù hợp.
 - Cung cấp màn hình đối chứng thực nghiệm (Benchmark) với **Baseline Greedy** kèm biểu đồ trực quan (Chart.js) và xuất báo cáo CSV UTF-8.
 
@@ -118,6 +118,12 @@ Mở Terminal / PowerShell và chạy 2 lệnh sau:
 & "E:\xampp\php\php.exe" "E:\xampp\htdocs\VolunteerHub\database\seeders\seed.php"
 ```
 
+Để bổ sung 4 hoạt động và 8 ca trực mẫu mà không xóa dữ liệu hiện có, chạy:
+```powershell
+php database\seeders\seed_extra.php
+```
+Seeder bổ sung chỉ chạy trong môi trường `development`, tự bỏ qua hoạt động đã có và tạo đăng ký mẫu theo kỹ năng của tình nguyện viên hiện có.
+
 ### Bước 5: Truy cập Website
 Mở trình duyệt web (Chrome, Edge, Firefox) và truy cập:
 👉 **[http://localhost/VolunteerHub/public](http://localhost/VolunteerHub/public)**
@@ -193,7 +199,17 @@ Hệ thống đã chuẩn bị sẵn 3 kịch bản dữ liệu mẫu trong CSDL
    - Tiêu chí phụ 3: ID ổn định (đảm bảo tính tất định - deterministic).
 3. **Cân bằng tải (Workload Balancing)**:
    - Khi chọn ứng viên cho một ca, ưu tiên người đang có ít ca phân công nhất.
-4. **Kiểm tra ràng buộc cứng**: Kỹ năng bắt buộc $\in$ Kỹ năng của TNV; Lịch rảnh bao trùm toàn bộ ca; Không chồng lấn thời gian với bất kỳ ca nào đã phân công trước đó; Không vượt `max_volunteers`.
+### Quy tắc kiểm tra điều kiện phân công
+Hệ thống sử dụng các ràng buộc cứng để đảm bảo tính hợp lệ của phương án phân công:
+
+1. **Kỹ năng bắt buộc:** Tình nguyện viên phải đáp ứng đầy đủ các kỹ năng bắt buộc của ca trực.
+2. **Lịch rảnh:**
+   - Tình nguyện viên đã đăng ký và được điều phối viên duyệt ca: Không bắt buộc khai báo lịch rảnh. Đơn đã duyệt đủ điều kiện để hệ thống tự phân công nếu ca còn chỗ và không vi phạm ràng buộc; tình nguyện viên vẫn phải xác nhận sau khi được phân công.
+   - Tình nguyện viên được đề xuất thay thế: Phải khai báo lịch rảnh bao phủ toàn bộ thời gian của ca trực.
+3. **Không trùng lịch:** Một tình nguyện viên không được phân công vào hai ca có thời gian chồng lấn.
+4. **Giới hạn số lượng:** Số lượng tình nguyện viên được phân công không được vượt quá `max_volunteers`.
+5. **Trạng thái đăng ký:** Chỉ những đơn có trạng thái `approved` mới được đưa vào thuật toán phân công. Đơn `pending` và `rejected` không được sử dụng.
+6. **Xác nhận phân công:** Phân công tự động sau khi duyệt đơn là trạng thái chờ xác nhận của tình nguyện viên. Với phương án thuật toán, phân công chính thức được tạo sau khi điều phối viên xác nhận kết quả.
 
 ### Bảng kết quả so sánh (Kỹ thuật 2):
 | Chỉ số thực nghiệm | Baseline Greedy (Tuần tự) | Improved Greedy (MCF) | Ý nghĩa thực tế |
@@ -207,18 +223,31 @@ Hệ thống đã chuẩn bị sẵn 3 kịch bản dữ liệu mẫu trong CSDL
 
 ## 9. Chạy Kiểm Thử Tự Động (Test Suite)
 
-Dự án tích hợp sẵn bộ kiểm thử độc lập kiểm tra toàn bộ 5 test cases bắt buộc:
+Dự án tích hợp sẵn bộ kiểm thử độc lập cho 6 trường hợp ràng buộc cùng 3 bộ dữ liệu cơ sở dữ liệu:
 ```powershell
 php tests/run_tests.php
 ```
 
 **Kết quả kiểm thử:**
 - `TC01`: Ràng buộc kỹ năng bắt buộc (100% Passed)
-- `TC02`: Ràng buộc lịch rảnh toàn ca (100% Passed)
+- `TC02`: Đơn đã duyệt không cần khai báo rảnh toàn ca (100% Passed)
 - `TC03`: Ràng buộc chống trùng ca / Overlap (100% Passed)
 - `TC04`: Giới hạn ca / Capacity limit (100% Passed)
 - `TC05`: So sánh hai thuật toán trên cùng dữ liệu (100% Passed)
+- `TC06`: Người thay thế phải khai báo rảnh toàn ca (100% Passed)
 - `Database Sets`: Bộ A (Đủ người), Bộ B (Thiếu người), Bộ C (Trùng lịch) đều Passed.
+
+## 10. Tự động gỡ phân công chưa xác nhận
+
+Khi điều phối viên duyệt đơn đăng ký một ca cụ thể, hệ thống tự phân công nếu ca còn chỗ và tình nguyện viên đáp ứng kỹ năng, không trùng lịch. Tình nguyện viên cần xác nhận phân công trong vòng 24 giờ. Phân công chưa xác nhận sau thời hạn này sẽ được tự động gỡ, ghi lịch sử và gửi thông báo cho tình nguyện viên cùng điều phối viên.
+
+Để tác vụ chạy tự động trên Windows, tạo tác vụ trong **Task Scheduler** chạy lặp lại mỗi 15 phút bằng chương trình `C:\xampp\php\php.exe` với đối số:
+
+```text
+C:\xampp\htdocs\VolunteerHub\scripts\expire_unconfirmed_assignments.php
+```
+
+Thay đường dẫn theo vị trí cài XAMPP và thư mục dự án. Có thể chạy lệnh này thủ công để xử lý ngay các phân công đã quá hạn.
 
 ---
 

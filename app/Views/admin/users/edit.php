@@ -36,4 +36,54 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
             <a href="<?= $baseUrl ?>/admin/users" class="btn btn-outline-secondary">Quay lại</a>
         </div>
     </form>
+
+    <?php
+    $assignedRoleIds = array_map('intval', array_filter(explode(',', $user['role_ids'] ?? '')));
+    $userId = (int)$user['id'];
+    ?>
+    <hr class="my-4">
+    <section aria-labelledby="account-roles-title">
+        <h2 id="account-roles-title" class="h5 fw-bold mb-1">Vai trò tài khoản</h2>
+        <p class="text-muted small mb-3">Vai trò quản trị viên cho phép truy cập toàn bộ khu vực quản trị.</p>
+
+        <?php if ($userId === $currentAdminId): ?>
+            <div class="alert alert-info mb-0">Không thể thay đổi vai trò của tài khoản quản trị viên đang đăng nhập.</div>
+        <?php else: ?>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <?php foreach ($roles as $role): ?>
+                    <?php if (in_array((int)$role['id'], $assignedRoleIds, true)): ?>
+                        <span class="badge bg-light text-dark border"><?= htmlspecialchars($role['display_name'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
+
+            <?php
+            $rolesToSet = array_filter(
+                $roles,
+                static fn(array $role): bool => $role['name'] !== 'admin'
+            );
+            ?>
+            <?php if ($rolesToSet): ?>
+                <form action="<?= $baseUrl ?>/admin/users/<?= $userId ?>/role" method="POST" class="row g-2 align-items-end">
+                    <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="action" value="replace">
+                    <div class="col-sm-8">
+                        <label for="role_id" class="form-label small fw-semibold">Đổi vai trò (thay thế tất cả vai trò hiện tại)</label>
+                        <select id="role_id" name="role_id" class="form-select" required>
+                            <option value="">Chọn vai trò mới...</option>
+                            <?php foreach ($rolesToSet as $role): ?>
+                                <option value="<?= (int)$role['id'] ?>"><?= htmlspecialchars($role['display_name'], ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-sm-4">
+                        <button type="submit" class="btn btn-outline-primary w-100"
+                                data-confirm="Đổi vai trò? Tài khoản sẽ chỉ còn vai trò vừa chọn.">
+                            <i class="bi bi-arrow-repeat me-1"></i>Đổi vai trò
+                        </button>
+                    </div>
+                </form>
+            <?php endif; ?>
+        <?php endif; ?>
+    </section>
 </div>

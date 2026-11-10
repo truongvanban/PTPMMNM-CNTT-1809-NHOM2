@@ -56,7 +56,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                     <div class="mb-3">
                                         <?php if (empty($req['candidates'])): ?>
                                             <div class="alert alert-warning py-2 small mb-2">
-                                                <i class="bi bi-exclamation-triangle me-1"></i> Không tìm thấy ứng viên nào rảnh và đủ kỹ năng bắt buộc. Bạn có thể duyệt vắng không cần người thay.
+                                                <i class="bi bi-exclamation-triangle me-1"></i> Không tìm thấy tình nguyện viên đã khai báo rảnh toàn bộ ca trực, đủ kỹ năng bắt buộc và không trùng lịch. Bạn có thể duyệt vắng không cần người thay.
                                             </div>
                                             <input type="hidden" name="replacement_user_id" value="0">
                                         <?php else: ?>
@@ -77,21 +77,22 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                         <input type="text" class="form-control form-control-sm" name="coordinator_note" placeholder="Ghi chú của điều phối viên (tùy chọn)">
                                     </div>
 
-                                    <div class="d-flex gap-2">
+                                    <div class="mb-3">
                                         <button type="submit" class="btn btn-success btn-sm px-3 fw-semibold">
                                             <i class="bi bi-check2-circle me-1"></i> Duyệt & Phân công người thay
                                         </button>
+                                    </div>
                                 </form>
 
-                                        <form action="<?= $baseUrl ?>/coordinator/replacement/reject" method="POST" class="d-inline">
-                                            <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
-                                            <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
-                                            <input type="hidden" name="coordinator_note" value="Yêu cầu bị từ chối do không bố trí được người thay.">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Bạn có chắc chắn muốn từ chối yêu cầu này?">
-                                                <i class="bi bi-x-circle me-1"></i> Từ chối
-                                            </button>
-                                        </form>
-                                    </div>
+                                <form action="<?= $baseUrl ?>/coordinator/replacement/reject" method="POST" class="d-flex flex-wrap gap-2 pt-2 border-top">
+                                    <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
+                                    <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                                    <input type="text" class="form-control form-control-sm flex-grow-1" name="coordinator_note"
+                                           placeholder="Lý do từ chối (không bắt buộc)" aria-label="Lý do từ chối">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Bạn có chắc chắn muốn từ chối yêu cầu này?">
+                                        <i class="bi bi-x-circle me-1"></i> Từ chối
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>

@@ -73,19 +73,84 @@ class UserController extends Controller
         ]);
     }
 
+    public function create(): void
+    {
+        $this->verifyCsrf();
+
+        $fullName = trim((string)$this->post('full_name', ''));
+        $email = strtolower(trim((string)$this->post('email', '')));
+        $phone = trim((string)$this->post('phone', ''));
+        $password = (string)$this->post('password', '');
+        $roleId = filter_var($this->post('role_id', 0), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+        if (strlen($fullName) < 2 || strlen($fullName) > 200) {
+            $this->redirect('/admin/users', ['error' => 'Họ tên phải từ 2 đến 200 ký tự.']);
+            return;
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 191) {
+            $this->redirect('/admin/users', ['error' => 'Email không đúng định dạng.']);
+            return;
+        }
+
+        if (strlen($password) < 8) {
+            $this->redirect('/admin/users', ['error' => 'Mật khẩu phải có ít nhất 8 ký tự.']);
+            return;
+        }
+
+        if ($this->userModel->findByEmail($email)) {
+            $this->redirect('/admin/users', ['error' => 'Email này đã tồn tại trong hệ thống.']);
+            return;
+        }
+
+        $db = Database::getInstance();
+        $roleStmt = $db->prepare("SELECT id, name FROM roles WHERE id = ? LIMIT 1");
+        $roleStmt->execute([$roleId]);
+        $role = $roleStmt->fetch();
+        if (!$role) {
+            $this->redirect('/admin/users', ['error' => 'Vai trò được chọn không hợp lệ.']);
+            return;
+        }
+
+        try {
+            $db->beginTransaction();
+            $userId = $this->userModel->create($email, $password, $fullName, $phone);
+
+            $stmt = $db->prepare("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)");
+            $stmt->execute([$userId, $roleId]);
+
+            if ($role['name'] === 'volunteer') {
+                $db->prepare("INSERT INTO volunteer_profiles (user_id) VALUES (?)")->execute([$userId]);
+            }
+
+            $db->commit();
+            $this->redirect('/admin/users', ['success' => "Đã tạo tài khoản mới thành công cho {$fullName}."]);
+        } catch (\Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            error_log('[Admin User Create Error] ' . $e->getMessage());
+            $this->redirect('/admin/users', ['error' => 'Lỗi khi tạo tài khoản: ' . $e->getMessage()]);
+        }
+    }
+
     public function editForm(string $id): void
     {
         $userId = filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-        $user = $userId === false ? null : $this->userModel->findById($userId);
+        $user = $userId === false ? null : $this->userModel->findWithRoles($userId);
         if (!$user) {
             http_response_code(404);
             $this->render('errors.404', ['title' => 'Không tìm thấy | VolunteerHub']);
             return;
         }
 
+        $roles = Database::getInstance()->query("SELECT id, name, display_name FROM roles ORDER BY id ASC")->fetchAll();
+
         $this->render('admin.users.edit', [
             'title'     => 'Chỉnh Sửa Tài Khoản | VolunteerHub',
             'user'      => $user,
+            'roles'     => $roles,
+            'currentAdminId' => (int)Session::userId(),
             'csrfToken' => Session::generateCsrf(),
             'success'   => Session::getFlash('success'),
             'error'     => Session::getFlash('error'),
@@ -231,8 +296,7 @@ class UserController extends Controller
         $roleId = filter_var($this->post('role_id', 0), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
         $action = $this->post('action', '');
 
-        if ($userId === false || $roleId === false || !is_string($action)
-            || !in_array($action, ['add', 'remove'], true)) {
+        if ($userId === false || $roleId === false || $action !== 'replace') {
             $this->redirect('/admin/users', ['error' => 'Vai trò không hợp lệ.']);
         }
 
@@ -251,7 +315,7 @@ class UserController extends Controller
         }
 
         $this->redirect('/admin/users', [
-            'success' => $action === 'add' ? 'Đã thêm vai trò cho tài khoản.' : 'Đã gỡ vai trò khỏi tài khoản.',
+            'success' => 'Đã đổi vai trò tài khoản. Tài khoản hiện chỉ còn vai trò đã chọn.',
         ]);
     }
 }
