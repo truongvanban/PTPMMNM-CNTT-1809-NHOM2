@@ -32,6 +32,7 @@ class TestRunner
         $this->testTC01_MandatorySkills();
         $this->testTC02_RegistrationEligibility();
         $this->testTC03_NoOverlap();
+        $this->testTC09_MidnightOverlap();
         $this->testTC04_CapacityLimit();
         $this->testTC05_AlgorithmComparison();
         $this->testTC06_ReplacementEligibility();
@@ -185,6 +186,61 @@ class TestRunner
         $this->record("TC03 - Ràng buộc chống trùng ca (Overlap)", $pass,
             $pass ? "User chỉ được xếp vào 1 trong 2 ca bị chồng lấn thời gian. 0 vi phạm trùng lặp."
                   : "Lỗi nghiêm trọng: Một người bị xếp vào 2 ca có giờ trùng nhau!");
+    }
+
+    private function testTC09_MidnightOverlap(): void
+    {
+        $shifts = [
+            [
+                'id' => 1, 'name' => 'Ca đêm', 'date' => '2024-03-20',
+                'time_start' => '23:00:00', 'time_end' => '01:00:00',
+                'min_volunteers' => 1, 'max_volunteers' => 1, 'mandatory_skills' => [],
+            ],
+            [
+                'id' => 2, 'name' => 'Ca sáng sớm', 'date' => '2024-03-21',
+                'time_start' => '00:30:00', 'time_end' => '02:00:00',
+                'min_volunteers' => 1, 'max_volunteers' => 1, 'mandatory_skills' => [],
+            ],
+        ];
+        $volunteers = [['id' => 1, 'full_name' => 'User 1', 'skills' => []]];
+        $registrations = [1 => [1], 2 => [1]];
+        $overlapAssignments = [1 => [1], 2 => [1]];
+        $overlapValidation = ConstraintValidator::validate($shifts, $volunteers, $overlapAssignments);
+        $adjacentShifts = [
+            $shifts[0],
+            [
+                'id' => 3, 'name' => 'Ca nối tiếp', 'date' => '2024-03-21',
+                'time_start' => '01:00:00', 'time_end' => '02:00:00',
+                'min_volunteers' => 1, 'max_volunteers' => 1, 'mandatory_skills' => [],
+            ],
+        ];
+        $adjacentValidation = ConstraintValidator::validate(
+            $adjacentShifts,
+            $volunteers,
+            [1 => [1], 3 => [1]]
+        );
+        [$overnightStart, $overnightEnd] = \App\Services\ShiftTime::interval($shifts[0]);
+
+        $algorithmsPreventOverlap = true;
+        foreach ([new BaselineGreedy(), new ImprovedGreedy()] as $algorithm) {
+            $result = $algorithm->execute($shifts, $volunteers, $registrations);
+            $assignedCount = count($result['assignments'][1] ?? []) + count($result['assignments'][2] ?? []);
+            if ($assignedCount !== 1) {
+                $algorithmsPreventOverlap = false;
+            }
+        }
+
+        $pass = !$overlapValidation['is_valid']
+            && $adjacentValidation['is_valid']
+            && $overnightEnd - $overnightStart === 7200
+            && $algorithmsPreventOverlap;
+        $this->record(
+            'TC09 - Phát hiện ca qua đêm chồng lịch',
+            $pass,
+            $pass
+                ? 'Hai thuật toán và validator phát hiện giao ca qua nửa đêm, đồng thời cho phép ca bắt đầu đúng lúc ca trước kết thúc.'
+                : 'Lỗi: kiểm tra trùng lịch chưa xử lý đúng ca qua nửa đêm.'
+        );
     }
 
     /**

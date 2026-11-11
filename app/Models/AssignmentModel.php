@@ -49,7 +49,7 @@ class AssignmentModel extends BaseModel
              LEFT JOIN volunteer_profiles vp ON vp.user_id = u.id
              LEFT JOIN volunteer_skills vs ON vs.user_id = u.id
              LEFT JOIN skills sk ON sk.id = vs.skill_id
-             WHERE reg.shift_id = ? AND reg.status = 'approved'
+             WHERE reg.shift_id = ? AND reg.status IN ('approved', 'cancelled')
                AND NOT EXISTS (
                    SELECT 1 FROM assignments existing
                    WHERE existing.shift_id = reg.shift_id
@@ -74,9 +74,17 @@ class AssignmentModel extends BaseModel
                    WHERE conflict_assignment.user_id = u.id
                      AND conflict_assignment.status NOT IN ('removed', 'replaced', 'absent')
                      AND conflict_assignment.shift_id != target.id
-                     AND conflict_shift.date = target.date
-                     AND conflict_shift.time_start < target.time_end
-                     AND conflict_shift.time_end > target.time_start
+                     AND TIMESTAMP(conflict_shift.date, conflict_shift.time_start) <
+                         CASE
+                             WHEN target.time_end <= target.time_start
+                                 THEN DATE_ADD(TIMESTAMP(target.date, target.time_end), INTERVAL 1 DAY)
+                             ELSE TIMESTAMP(target.date, target.time_end)
+                         END
+                     AND CASE
+                             WHEN conflict_shift.time_end <= conflict_shift.time_start
+                                 THEN DATE_ADD(TIMESTAMP(conflict_shift.date, conflict_shift.time_end), INTERVAL 1 DAY)
+                             ELSE TIMESTAMP(conflict_shift.date, conflict_shift.time_end)
+                         END > TIMESTAMP(target.date, target.time_start)
                )
              GROUP BY u.id";
 
@@ -288,17 +296,18 @@ class AssignmentModel extends BaseModel
             }
 
             $registrationStmt = $this->db->prepare(
-                "SELECT id FROM registrations
-                 WHERE shift_id = ? AND user_id = ? AND status = 'approved'
+                "SELECT id, status FROM registrations
+                 WHERE shift_id = ? AND user_id = ? AND status IN ('approved', 'cancelled')
                  LIMIT 1
                  FOR UPDATE"
             );
             $registrationStmt->execute([$shiftId, $userId]);
-            if (!$registrationStmt->fetchColumn()) {
+            $registration = $registrationStmt->fetch();
+            if (!$registration) {
                 if ($ownsTransaction) {
                     $this->db->rollBack();
                 }
-                return ['success' => false, 'message' => 'Chỉ có thể phân công tình nguyện viên đã đăng ký và được duyệt ca này.'];
+                return ['success' => false, 'message' => 'Chỉ có thể phân công tình nguyện viên đã đăng ký ca này.'];
             }
 
             // 1. Khóa hàng và kiểm tra số người hiện tại (Concurrency control)
@@ -355,6 +364,12 @@ class AssignmentModel extends BaseModel
                     $this->db->rollBack();
                 }
                 return ['success' => false, 'message' => 'Tình nguyện viên bị trùng lịch với một ca trực khác cùng thời điểm.'];
+            }
+
+            if ($registration['status'] === 'cancelled') {
+                $this->db->prepare(
+                    "UPDATE registrations SET status = 'approved', updated_at = NOW() WHERE id = ?"
+                )->execute([(int)$registration['id']]);
             }
 
             // 6. Thêm hoặc cập nhật bản ghi phân công
@@ -453,6 +468,11 @@ class AssignmentModel extends BaseModel
                     $this->db->commit();
                     continue;
                 }
+
+                $this->db->prepare(
+                    "UPDATE registrations SET status = 'cancelled', updated_at = NOW()
+                     WHERE user_id = ? AND shift_id = ? AND status = 'approved'"
+                )->execute([(int)$assignment['user_id'], (int)$assignment['shift_id']]);
 
                 $this->db->prepare(
                     "INSERT INTO assignment_history (assignment_id, changed_by, action, old_data, note)

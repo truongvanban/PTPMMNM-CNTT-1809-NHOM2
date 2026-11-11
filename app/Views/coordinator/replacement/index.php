@@ -4,7 +4,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
 <div class="card border-0 shadow-sm rounded-4 p-4">
     <div class="mb-4">
         <h1 class="h4 fw-bold mb-1"><i class="bi bi-arrow-left-right text-warning me-2"></i>Duyệt Yêu Cầu Báo Vắng & Tìm Người Thay</h1>
-        <p class="text-muted small mb-0">Hệ thống tự động lọc danh sách tình nguyện viên rảnh, đủ kỹ năng và không bị trùng lịch để đề xuất thay thế</p>
+        <p class="text-muted small mb-0">Hệ thống lọc tình nguyện viên đủ kỹ năng và không bị trùng với các ca đã đăng ký hoặc được phân công để đề xuất thay thế.</p>
     </div>
 
     <?php if (empty($requests)): ?>

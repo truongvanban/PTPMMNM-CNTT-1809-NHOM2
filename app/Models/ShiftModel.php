@@ -246,9 +246,17 @@ class ShiftModel extends BaseModel
                        WHERE asgn.user_id = ?
                          AND asgn.shift_id != target.id
                          AND asgn.status NOT IN ('removed', 'replaced', 'absent')
-                         AND existing.date = target.date
-                         AND existing.time_start < target.time_end
-                         AND existing.time_end > target.time_start
+                         AND TIMESTAMP(existing.date, existing.time_start) <
+                             CASE
+                                 WHEN target.time_end <= target.time_start
+                                     THEN DATE_ADD(TIMESTAMP(target.date, target.time_end), INTERVAL 1 DAY)
+                                 ELSE TIMESTAMP(target.date, target.time_end)
+                             END
+                         AND CASE
+                                 WHEN existing.time_end <= existing.time_start
+                                     THEN DATE_ADD(TIMESTAMP(existing.date, existing.time_end), INTERVAL 1 DAY)
+                                 ELSE TIMESTAMP(existing.date, existing.time_end)
+                             END > TIMESTAMP(target.date, target.time_start)
                    )
                    OR EXISTS (
                        SELECT 1
@@ -257,9 +265,17 @@ class ShiftModel extends BaseModel
                        WHERE reg.user_id = ?
                          AND reg.shift_id != target.id
                          AND reg.status IN ('pending', 'approved')
-                         AND existing.date = target.date
-                         AND existing.time_start < target.time_end
-                         AND existing.time_end > target.time_start
+                         AND TIMESTAMP(existing.date, existing.time_start) <
+                             CASE
+                                 WHEN target.time_end <= target.time_start
+                                     THEN DATE_ADD(TIMESTAMP(target.date, target.time_end), INTERVAL 1 DAY)
+                                 ELSE TIMESTAMP(target.date, target.time_end)
+                             END
+                         AND CASE
+                                 WHEN existing.time_end <= existing.time_start
+                                     THEN DATE_ADD(TIMESTAMP(existing.date, existing.time_end), INTERVAL 1 DAY)
+                                 ELSE TIMESTAMP(existing.date, existing.time_end)
+                             END > TIMESTAMP(target.date, target.time_start)
                    )
                )
              LIMIT 1"

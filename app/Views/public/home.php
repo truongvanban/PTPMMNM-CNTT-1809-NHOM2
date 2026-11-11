@@ -111,7 +111,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                 </div>
                 <h3 class="vh-feature-title">Báo Vắng & Gợi Ý Thay Thế</h3>
                 <p class="vh-feature-desc">
-                    TNV gửi yêu cầu xin vắng trong 1 chạm. Hệ thống thông minh gợi ý ngay danh sách TNV rảnh và đủ điều kiện để điều phối viên duyệt tức thì.
+                    TNV gửi yêu cầu xin vắng trong 1 chạm. Hệ thống gợi ý tình nguyện viên đủ kỹ năng và không bị trùng lịch phân công để điều phối viên xem xét.
                 </p>
                 <span class="vh-feature-tag"><i class="bi bi-lightning-charge me-1"></i> Xử lý tức thì</span>
             </div>
@@ -164,7 +164,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                     <div class="vh-step-badge">1</div>
                     <h3 class="vh-step-title">Khám Phá & Chọn Ca Trực</h3>
                     <p class="vh-step-desc">
-                        Lựa chọn các hoạt động tình nguyện ý nghĩa gần bạn, tìm ca trực phù hợp với thời gian rảnh và kỹ năng của bản thân.
+                        Lựa chọn hoạt động và ca trực phù hợp với lịch cá nhân, kỹ năng của bản thân.
                     </p>
                 </div>
             </div>

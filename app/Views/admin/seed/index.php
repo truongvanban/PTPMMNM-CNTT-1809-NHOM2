@@ -10,7 +10,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
     <div class="alert alert-info rounded-3 p-3 mb-4">
         <h2 class="h6 fw-bold mb-2"><i class="bi bi-info-circle-fill me-1"></i> Thông Tin 3 Bộ Dữ Liệu Mẫu Thử Nghiệm:</h2>
         <ul class="mb-0 small ps-3">
-            <li class="mb-1"><strong>Bộ A (Đủ người - Hiến máu tình nguyện):</strong> 4 ca trực, 20+ tình nguyện viên đăng ký và rảnh toàn thời gian. Thuật toán phân công đủ 100%.</li>
+            <li class="mb-1"><strong>Bộ A (Đủ người - Hiến máu tình nguyện):</strong> 4 ca trực, 20+ tình nguyện viên đăng ký và đáp ứng yêu cầu kỹ năng. Thuật toán phân công đủ 100%.</li>
             <li class="mb-1"><strong>Bộ B (Thiếu người - Khám bệnh vùng cao):</strong> 3 ca trực, yêu cầu kỹ năng bắt buộc "Y tế sơ cứu" & "Tiếng Anh". Thuật toán xác định chính xác nguyên nhân thiếu người do thiếu ứng viên đạt kỹ năng.</li>
             <li class="mb-0"><strong>Bộ C (Trùng lịch - Hội chợ từ thiện):</strong> 4 ca trực, các ca sáng diễn ra cùng khung giờ. Thuật toán kiểm soát ràng buộc cứng không để bất kỳ TNV nào bị xếp trùng 2 ca cùng lúc.</li>
         </ul>

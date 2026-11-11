@@ -178,7 +178,7 @@ $bulkEligibleAssignments = array_values(array_filter(
         <div class="card border-0 shadow-sm rounded-4 p-4">
             <h2 class="h5 fw-bold mb-1"><i class="bi bi-person-plus-fill text-success me-2"></i>Thêm Người Vào Ca</h2>
             <p class="text-muted small mb-3">
-                Chọn từ <?= (int)($candidatePagination['total'] ?? count($availableVolunteers)) ?> tình nguyện viên đã đăng ký, được duyệt, đủ kỹ năng bắt buộc và không trùng lịch. Sau khi được phân công, tình nguyện viên cần xác nhận tham gia.
+                Chọn từ <?= (int)($candidatePagination['total'] ?? count($availableVolunteers)) ?> tình nguyện viên đã đăng ký, đủ kỹ năng bắt buộc và không trùng lịch. Đơn đã hủy có thể được khôi phục khi phân công lại. Tình nguyện viên cần xác nhận sau khi được phân công.
             </p>
 
             <?php if ($assignedCount >= $maxVol): ?>

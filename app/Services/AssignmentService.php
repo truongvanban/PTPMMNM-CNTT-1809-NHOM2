@@ -108,7 +108,15 @@ class AssignmentService
 
             $workloadStmt = $this->db->prepare(
                 "SELECT a.user_id,
-                        COALESCE(SUM(TIMESTAMPDIFF(MINUTE, s.time_start, s.time_end)), 0) AS workload_minutes
+                        COALESCE(SUM(TIMESTAMPDIFF(
+                            MINUTE,
+                            TIMESTAMP(s.date, s.time_start),
+                            CASE
+                                WHEN s.time_end <= s.time_start
+                                    THEN DATE_ADD(TIMESTAMP(s.date, s.time_end), INTERVAL 1 DAY)
+                                ELSE TIMESTAMP(s.date, s.time_end)
+                            END
+                        )), 0) AS workload_minutes
                  FROM assignments a
                  JOIN shifts s ON s.id = a.shift_id
                  WHERE a.user_id IN ($placeholders)
@@ -304,12 +312,7 @@ class AssignmentService
     {
         foreach ($assignedShiftIds as $assignedShiftId) {
             $assignedShift = $shiftsById[(int)$assignedShiftId] ?? null;
-            if (
-                $assignedShift
-                && $assignedShift['date'] === $currentShift['date']
-                && $assignedShift['time_start'] < $currentShift['time_end']
-                && $assignedShift['time_end'] > $currentShift['time_start']
-            ) {
+            if ($assignedShift && ShiftTime::overlaps($assignedShift, $currentShift)) {
                 return (string)$assignedShift['name'];
             }
         }
@@ -526,17 +529,29 @@ class AssignmentService
                                  WHERE conflict_assignment.user_id = ?
                                    AND conflict_assignment.status NOT IN ('removed', 'replaced', 'absent')
                                    AND conflict_assignment.shift_id != ?
-                                   AND conflict_shift.date = ?
-                                   AND conflict_shift.time_start < ?
-                                   AND conflict_shift.time_end > ?
+                                   AND TIMESTAMP(conflict_shift.date, conflict_shift.time_start) <
+                                       CASE
+                                           WHEN ? <= ? THEN DATE_ADD(TIMESTAMP(?, ?), INTERVAL 1 DAY)
+                                           ELSE TIMESTAMP(?, ?)
+                                       END
+                                   AND CASE
+                                           WHEN conflict_shift.time_end <= conflict_shift.time_start
+                                               THEN DATE_ADD(TIMESTAMP(conflict_shift.date, conflict_shift.time_end), INTERVAL 1 DAY)
+                                           ELSE TIMESTAMP(conflict_shift.date, conflict_shift.time_end)
+                                       END > TIMESTAMP(?, ?)
                                  LIMIT 1
                                  FOR UPDATE"
                             );
                             $conflictStmt->execute([
                                 $userId,
                                 $shiftId,
+                                $shiftsById[$shiftId]['time_end'],
+                                $shiftsById[$shiftId]['time_start'],
                                 $shiftsById[$shiftId]['date'],
                                 $shiftsById[$shiftId]['time_end'],
+                                $shiftsById[$shiftId]['date'],
+                                $shiftsById[$shiftId]['time_end'],
+                                $shiftsById[$shiftId]['date'],
                                 $shiftsById[$shiftId]['time_start'],
                             ]);
                             if ($conflictStmt->fetchColumn()) {
@@ -575,11 +590,7 @@ class AssignmentService
                 foreach ($proposedShiftsByUser as $userShifts) {
                     for ($i = 0, $count = count($userShifts); $i < $count; $i++) {
                         for ($j = $i + 1; $j < $count; $j++) {
-                            if (
-                                $userShifts[$i]['date'] === $userShifts[$j]['date']
-                                && $userShifts[$i]['time_start'] < $userShifts[$j]['time_end']
-                                && $userShifts[$i]['time_end'] > $userShifts[$j]['time_start']
-                            ) {
+                            if (ShiftTime::overlaps($userShifts[$i], $userShifts[$j])) {
                                 $this->db->rollBack();
                                 return ['success' => false, 'message' => 'Phương án có ca trùng lịch cho cùng tình nguyện viên. Vui lòng chạy lại thuật toán.'];
                             }

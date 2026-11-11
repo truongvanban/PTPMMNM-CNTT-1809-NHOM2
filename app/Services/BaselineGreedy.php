@@ -150,12 +150,8 @@ class BaselineGreedy
 
         foreach ($assignedShiftIds as $asid) {
             if (!isset($shiftMap[$asid])) continue;
-            $other = $shiftMap[$asid];
-            if ($other['date'] === $currentShift['date']) {
-                // Kiểm tra giao thoa [startA, endA) và [startB, endB)
-                if ($currentShift['time_start'] < $other['time_end'] && $currentShift['time_end'] > $other['time_start']) {
-                    return true;
-                }
+            if (ShiftTime::overlaps($currentShift, $shiftMap[$asid])) {
+                return true;
             }
         }
         return false;

@@ -206,9 +206,8 @@ class ImprovedGreedy
 
     private function getShiftDurationMinutes(array $shift): int
     {
-        $start = strtotime('1970-01-01 ' . $shift['time_start']);
-        $end = strtotime('1970-01-01 ' . $shift['time_end']);
-        return $start !== false && $end !== false ? max(0, (int)(($end - $start) / 60)) : 0;
+        [$start, $end] = ShiftTime::interval($shift);
+        return (int)(($end - $start) / 60);
     }
 
     private function hasOverlapWithAssigned(int $uid, array $currentShift, array $assignedShiftIds, array $allShifts): bool
@@ -220,11 +219,8 @@ class ImprovedGreedy
 
         foreach ($assignedShiftIds as $asid) {
             if (!isset($shiftMap[$asid])) continue;
-            $other = $shiftMap[$asid];
-            if ($other['date'] === $currentShift['date']) {
-                if ($currentShift['time_start'] < $other['time_end'] && $currentShift['time_end'] > $other['time_start']) {
-                    return true;
-                }
+            if (ShiftTime::overlaps($currentShift, $shiftMap[$asid])) {
+                return true;
             }
         }
         return false;

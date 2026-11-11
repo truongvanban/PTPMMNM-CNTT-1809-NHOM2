@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Services\ShiftTime;
+
 class ConstraintValidator
 {
     /**
@@ -140,17 +142,14 @@ class ConstraintValidator
                     $sA = $shiftsOfUser[$i];
                     $sB = $shiftsOfUser[$j];
 
-                    if ($sA['date'] === $sB['date']) {
-                        // Giao thoa thời gian: startA < endB && endA > startB
-                        if ($sA['time_start'] < $sB['time_end'] && $sA['time_end'] > $sB['time_start']) {
-                            $volName = $volunteerMap[$uid]['full_name'] ?? "ID $uid";
-                            $violations[] = [
-                                'type'     => 'overlap',
-                                'shift_id' => $sA['id'],
-                                'user_id'  => $uid,
-                                'message'  => "TNV $volName (ID $uid) bị xếp trùng giờ giữa 2 ca: '{$sA['name']}' ({$sA['time_start']}-{$sA['time_end']}) và '{$sB['name']}' ({$sB['time_start']}-{$sB['time_end']})."
-                            ];
-                        }
+                    if (ShiftTime::overlaps($sA, $sB)) {
+                        $volName = $volunteerMap[$uid]['full_name'] ?? "ID $uid";
+                        $violations[] = [
+                            'type'     => 'overlap',
+                            'shift_id' => $sA['id'],
+                            'user_id'  => $uid,
+                            'message'  => "TNV $volName (ID $uid) bị xếp trùng giờ giữa 2 ca: '{$sA['name']}' ({$sA['time_start']}-{$sA['time_end']}) và '{$sB['name']}' ({$sB['time_start']}-{$sB['time_end']})."
+                        ];
                     }
                 }
             }

@@ -147,6 +147,8 @@ Giao diện đăng nhập tại `/login` đã được tích hợp **nút bấm 
 | **Điều phối viên (Coordinator)** | `coord1@volunteerhub.vn` | `Coord@123` | Quản lý ca trực, chạy thuật toán phân công, xem cảnh báo ca thiếu người, duyệt báo vắng. |
 | **Tình nguyện viên (Volunteer)** | `tnv1@volunteerhub.vn`<br>*(đến `tnv30@volunteerhub.vn`)* | `Demo@123` | Khai báo kỹ năng, đăng ký ca, xem lịch cá nhân, xác nhận tham gia / báo vắng. |
 
+> **Cảnh báo bảo mật:** Đây là tài khoản và mật khẩu mẫu công khai, chỉ dùng trên cơ sở dữ liệu phát triển cục bộ. Trước khi đưa hệ thống lên môi trường công khai, hãy xóa hoặc đổi mật khẩu toàn bộ tài khoản demo; không dùng dữ liệu mẫu trên production.
+
 ---
 
 ## 6. Mô Tả Các Bộ Dữ Liệu Thử Nghiệm
@@ -155,7 +157,7 @@ Hệ thống có các kịch bản mẫu trong CSDL để kiểm thử:
 
 - **Bộ A — Kịch bản Đủ người (Hoạt động 1: Ngày Hội Hiến Máu)**:
   - Gồm 4 ca trực với yêu cầu kỹ năng sơ cứu và hướng dẫn.
-  - Có hơn 20 tình nguyện viên rảnh và đáp ứng kỹ năng đăng ký.
+  - Có hơn 20 tình nguyện viên đăng ký và đáp ứng kỹ năng yêu cầu.
   - **Kết quả thuật toán**: Đạt tỷ lệ đủ người **100%**, 0 vi phạm.
 
 - **Bộ B — Kịch bản Thiếu người & Kỹ năng (Hoạt động 2: Hỗ Trợ Y Tế Vùng Cao)**:
@@ -196,7 +198,7 @@ Hệ thống có các kịch bản mẫu trong CSDL để kiểm thử:
 4. Đăng nhập lại tài khoản **Điều phối viên** (`coord1@volunteerhub.vn`).
 5. Vào mục **"Duyệt báo vắng & Thay người"** (`/coordinator/replacement`):
    - Thấy yêu cầu báo vắng của `tnv1`.
-   - Hệ thống tự động lọc và gợi ý danh sách các TNV **đang rảnh trọn ca này, có đủ kỹ năng bắt buộc và không bị trùng lịch**.
+   - Hệ thống tự động lọc và gợi ý danh sách TNV **có đủ kỹ năng bắt buộc và không bị trùng với ca đã đăng ký hoặc được phân công**. Hệ thống chưa có chức năng khai báo lịch rảnh.
    - Điều phối viên chọn 1 ứng viên thay thế và bấm **"Duyệt & Phân công người thay"**.
 6. Hệ thống tự động chuyển phân công, cập nhật trạng thái và gửi thông báo tới người thay thế.
 

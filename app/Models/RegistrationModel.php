@@ -87,9 +87,17 @@ class RegistrationModel extends BaseModel
                 "SELECT s.name
                  FROM shifts target
                  JOIN shifts s ON s.id <> target.id
-                   AND s.date = target.date
-                   AND s.time_start < target.time_end
-                   AND s.time_end > target.time_start
+                   AND TIMESTAMP(s.date, s.time_start) <
+                       CASE
+                           WHEN target.time_end <= target.time_start
+                               THEN DATE_ADD(TIMESTAMP(target.date, target.time_end), INTERVAL 1 DAY)
+                           ELSE TIMESTAMP(target.date, target.time_end)
+                       END
+                   AND CASE
+                           WHEN s.time_end <= s.time_start
+                               THEN DATE_ADD(TIMESTAMP(s.date, s.time_end), INTERVAL 1 DAY)
+                           ELSE TIMESTAMP(s.date, s.time_end)
+                       END > TIMESTAMP(target.date, target.time_start)
                  WHERE target.id = ?
                    AND (
                        EXISTS (
@@ -236,7 +244,7 @@ class RegistrationModel extends BaseModel
                     $this->db->rollBack();
                     return [
                         'success' => false,
-                        'message' => 'Không thể duyệt đơn; đơn vẫn ở trạng thái chờ duyệt. ' . $assignmentResult['message'],
+                        'message' => 'Không thể duyệt đơn; giao dịch đã được hoàn tác và đơn vẫn ở trạng thái chờ duyệt. ' . $assignmentResult['message'],
                     ];
                 }
             }

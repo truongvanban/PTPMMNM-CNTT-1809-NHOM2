@@ -24,12 +24,18 @@ if (!file_exists($envFile)) {
 
 // Đọc .env
 $env = parse_ini_file($envFile);
+$appEnv  = $env['APP_ENV'] ?? '';
 $host    = $env['DB_HOST'] ?? '127.0.0.1';
 $port    = $env['DB_PORT'] ?? 3306;
 $dbname  = $env['DB_NAME'] ?? 'volunteerhub';
 $user    = $env['DB_USER'] ?? 'root';
 $pass    = $env['DB_PASS'] ?? '';
 $charset = $env['DB_CHARSET'] ?? 'utf8mb4';
+
+if ($appEnv !== 'development') {
+    fwrite(STDERR, "Seeder chứa tài khoản demo và chỉ được chạy khi APP_ENV=development.\n");
+    exit(1);
+}
 
 try {
     $pdo = new PDO(

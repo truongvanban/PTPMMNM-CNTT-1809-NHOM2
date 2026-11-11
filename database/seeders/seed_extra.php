@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
 $appConfig = require $root . '/config/app.php';
-if ($appConfig['env'] !== 'development') {
+if (getenv('APP_ENV') !== 'development' || $appConfig['env'] !== 'development') {
     fwrite(STDERR, "Chỉ được chạy seeder dữ liệu mẫu trong môi trường development.\n");
     exit(1);
 }
