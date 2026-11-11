@@ -134,7 +134,7 @@ $periodLabels = [
                 <ol class="list-group list-group-numbered list-group-flush">
                     <?php foreach ($leaderboard as $leader): ?>
                         <li class="list-group-item d-flex justify-content-between gap-2 px-0">
-                            <span><?= htmlspecialchars($leader['full_name']) ?></span>
+                            <span class="text-body fw-medium"><?= htmlspecialchars($leader['full_name']) ?></span>
                             <strong><?= number_format((int)$leader['points']) ?> điểm</strong>
                         </li>
                     <?php endforeach; ?>

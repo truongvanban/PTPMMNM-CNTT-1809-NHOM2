@@ -48,6 +48,9 @@ $userName = Session::userName();
                 <a class="nav-link <?= str_ends_with($currentUri, '/dashboard') ? 'active' : '' ?>" href="<?= $baseUrl ?>/admin/dashboard">
                     <i class="bi bi-speedometer2"></i> Dashboard Admin
                 </a>
+                <a class="nav-link <?= str_contains($currentUri, '/admin/profile') ? 'active' : '' ?>" href="<?= $baseUrl ?>/admin/profile">
+                    <i class="bi bi-person-circle"></i> Hồ sơ cá nhân
+                </a>
                 <a class="nav-link <?= str_contains($currentUri, '/admin/users') ? 'active' : '' ?>" href="<?= $baseUrl ?>/admin/users">
                     <i class="bi bi-person-lines-fill"></i> Quản lý tài khoản
                 </a>

@@ -75,6 +75,27 @@ class PointsModel extends BaseModel
              ORDER BY required_points ASC, id ASC"
         );
         $badgeStmt->execute([$points]);
+        $badges = [];
+        $badgeDefinitions = [
+            0 => ['name' => 'Tân binh', 'icon' => 'bi-seedling'],
+            101 => ['name' => 'Nhiệt huyết', 'icon' => 'bi-fire'],
+            501 => ['name' => 'Truyền cảm hứng', 'icon' => 'bi-star-fill'],
+            1501 => ['name' => 'Đại sứ xanh', 'icon' => 'bi-award-fill'],
+        ];
+        $seenBadgeThresholds = [];
+        foreach ($badgeStmt->fetchAll() as $badge) {
+            $requiredPoints = (int)$badge['required_points'];
+            if (isset($seenBadgeThresholds[$requiredPoints])) {
+                continue;
+            }
+
+            $seenBadgeThresholds[$requiredPoints] = true;
+            if (isset($badgeDefinitions[$requiredPoints])) {
+                $badge = array_merge($badge, $badgeDefinitions[$requiredPoints]);
+            }
+
+            $badges[] = $badge;
+        }
 
         return [
             'points' => $points,
@@ -84,7 +105,7 @@ class PointsModel extends BaseModel
             'next_tier_label' => $tier['next_label'],
             'points_to_next_tier' => $tier['next'] === null ? 0 : max(0, $tier['next'] - $points),
             'progress' => $progress,
-            'badges' => $badgeStmt->fetchAll(),
+            'badges' => $badges,
         ];
     }
 

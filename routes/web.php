@@ -49,6 +49,9 @@ return [
 
     // ─── Khu vực Điều phối viên ───────────────────────────────
     ['GET',  '/coordinator/dashboard',                 'Coordinator\DashboardController@index',       'coordinator'],
+    ['GET',  '/coordinator/profile',                   'Coordinator\ProfileController@index',         'coordinator'],
+    ['POST', '/coordinator/profile',                   'Coordinator\ProfileController@update',        'coordinator'],
+    ['POST', '/coordinator/profile/password',          'Coordinator\ProfileController@changePassword','coordinator'],
     ['GET',  '/coordinator/activities',                'Coordinator\ActivityController@index',        'coordinator'],
     ['GET',  '/coordinator/activities/create',         'Coordinator\ActivityController@createForm',   'coordinator'],
     ['POST', '/coordinator/activities/create',         'Coordinator\ActivityController@create',       'coordinator'],
@@ -73,6 +76,7 @@ return [
     ['POST', '/coordinator/assignment/manual/add',     'Coordinator\AssignmentController@manualAdd',  'coordinator'],
     ['POST', '/coordinator/assignment/manual/remove',  'Coordinator\AssignmentController@manualRemove','coordinator'],
     ['POST', '/coordinator/assignment/complete',      'Coordinator\AssignmentController@completeAssignment','coordinator'],
+    ['POST', '/coordinator/assignment/complete-all',  'Coordinator\AssignmentController@completeAllAssignments','coordinator'],
     ['POST', '/coordinator/assignment/no-show',       'Coordinator\AssignmentController@markNoShow','coordinator'],
     ['GET',  '/coordinator/replacement',               'Coordinator\ReplacementController@index',     'coordinator'],
     ['POST', '/coordinator/replacement/approve',       'Coordinator\ReplacementController@approve',   'coordinator'],
@@ -83,6 +87,9 @@ return [
 
     // ─── Khu vực Admin ─────────────────────────────────────────
     ['GET',  '/admin/dashboard',                       'Admin\DashboardController@index',    'admin'],
+    ['GET',  '/admin/profile',                         'Admin\ProfileController@index',       'admin'],
+    ['POST', '/admin/profile',                         'Admin\ProfileController@update',      'admin'],
+    ['POST', '/admin/profile/password',                'Admin\ProfileController@changePassword','admin'],
     ['GET',  '/admin/points',                          'Admin\PointsController@index',       'admin'],
     ['POST', '/admin/points/settings',                'Admin\PointsController@saveSettings','admin'],
     ['POST', '/admin/points/terms',                   'Admin\PointsController@saveTerm',   'admin'],

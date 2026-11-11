@@ -290,6 +290,67 @@ class AssignmentController extends Controller
         );
     }
 
+    public function completeAllAssignments(): void
+    {
+        $this->verifyCsrf();
+        $coordinatorId = (int)Session::userId();
+        $shiftId = (int)$this->post('shift_id', 0);
+        $shift = $shiftId > 0 ? $this->shiftModel->findWithDetails($shiftId) : null;
+        if (!$shift || ((int)$shift['coordinator_id'] !== $coordinatorId && !Session::hasRole('admin'))) {
+            $this->redirect('/403');
+            return;
+        }
+
+        $hoursByAssignment = $this->post('hours_worked', []);
+        if (!is_array($hoursByAssignment)) {
+            $hoursByAssignment = [];
+        }
+
+        $eligibleAssignments = array_filter(
+            $this->assignmentModel->getByShift($shiftId),
+            static fn(array $assignment): bool =>
+                in_array($assignment['status'], ['assigned', 'confirmed'], true)
+                && $assignment['attendance_status'] !== 'completed'
+        );
+        if (!$eligibleAssignments) {
+            $this->redirect(
+                "/coordinator/assignment/manual/{$shiftId}",
+                ['error' => 'Không có tình nguyện viên nào đủ điều kiện để điểm danh.']
+            );
+            return;
+        }
+
+        $pointsModel = new PointsModel();
+        $completedCount = 0;
+        $failedCount = 0;
+        foreach ($eligibleAssignments as $assignment) {
+            $assignmentId = (int)$assignment['id'];
+            $rawHours = $hoursByAssignment[$assignmentId] ?? '';
+            $hours = is_numeric($rawHours) ? (float)$rawHours : 0;
+            $result = $pointsModel->completeAssignment(
+                $assignmentId,
+                $coordinatorId,
+                $hours,
+                false,
+                Session::hasRole('admin')
+            );
+            if ($result['success']) {
+                $completedCount++;
+            } else {
+                $failedCount++;
+            }
+        }
+
+        $message = "Đã điểm danh hoàn thành {$completedCount}/" . count($eligibleAssignments) . ' tình nguyện viên.';
+        if ($failedCount > 0) {
+            $message .= " {$failedCount} người chưa được ghi nhận; vui lòng kiểm tra trạng thái ca và số giờ.";
+        }
+        $this->redirect(
+            "/coordinator/assignment/manual/{$shiftId}",
+            [$failedCount > 0 ? 'error' : 'success' => $message]
+        );
+    }
+
     public function markNoShow(): void
     {
         $this->verifyCsrf();

@@ -3,8 +3,19 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
 $assignedCount = count($assignedList);
 $minVol = (int)$shift['min_volunteers'];
 $maxVol = (int)$shift['max_volunteers'];
-$shiftHasEnded = strtotime($shift['date'] . ' ' . $shift['time_end']) <= time();
-$scheduledHours = max(0.1, (strtotime($shift['time_end']) - strtotime($shift['time_start'])) / 3600);
+$shiftStart = new DateTimeImmutable($shift['date'] . ' ' . $shift['time_start']);
+$shiftEnd = new DateTimeImmutable($shift['date'] . ' ' . $shift['time_end']);
+if ($shiftEnd <= $shiftStart) {
+    $shiftEnd = $shiftEnd->modify('+1 day');
+}
+$scheduledHours = min(24, max(0.1, ($shiftEnd->getTimestamp() - $shiftStart->getTimestamp()) / 3600));
+$shiftHasEnded = $shiftEnd->getTimestamp() <= time();
+$bulkEligibleAssignments = array_values(array_filter(
+    $assignedList,
+    static fn(array $assignment): bool =>
+        in_array($assignment['status'], ['assigned', 'confirmed'], true)
+        && $assignment['attendance_status'] !== 'completed'
+));
 ?>
 <div class="mb-4">
     <nav aria-label="breadcrumb">
@@ -62,7 +73,22 @@ $scheduledHours = max(0.1, (strtotime($shift['time_end']) - strtotime($shift['ti
     <!-- Danh sách đang phân công -->
     <div class="col-lg-7">
         <div class="card border-0 shadow-sm rounded-4 p-4">
-            <h2 class="h5 fw-bold mb-3"><i class="bi bi-people-fill text-primary me-2"></i>Tình Nguyện Viên Trong Ca (<?= $assignedCount ?>)</h2>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <h2 class="h5 fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Tình Nguyện Viên Trong Ca (<?= $assignedCount ?>)</h2>
+                <?php if ($shiftHasEnded && !empty($bulkEligibleAssignments)): ?>
+                    <form action="<?= $baseUrl ?>/coordinator/assignment/complete-all" method="POST" class="m-0"
+                          data-confirm="Điểm danh hoàn thành cho tất cả <?= count($bulkEligibleAssignments) ?> tình nguyện viên đủ điều kiện?">
+                        <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
+                        <input type="hidden" name="shift_id" value="<?= (int)$shift['id'] ?>">
+                        <?php foreach ($bulkEligibleAssignments as $assignment): ?>
+                            <input type="hidden" name="hours_worked[<?= (int)$assignment['id'] ?>]" value="<?= number_format($scheduledHours, 1, '.', '') ?>">
+                        <?php endforeach; ?>
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="bi bi-check2-all me-1"></i> Điểm danh tất cả
+                        </button>
+                    </form>
+                <?php endif; ?>
+            </div>
 
             <?php if (empty($assignedList)): ?>
                 <div class="p-4 text-center text-muted">
@@ -128,7 +154,9 @@ $scheduledHours = max(0.1, (strtotime($shift['time_end']) - strtotime($shift['ti
                                                 <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
                                                 <input type="hidden" name="assignment_id" value="<?= $asgn['id'] ?>">
                                                 <input type="hidden" name="shift_id" value="<?= $shift['id'] ?>">
-                                                <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Bạn có chắc chắn muốn gỡ tình nguyện viên này khỏi ca?">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="<?= $asgn['attendance_status'] === 'confirmed'
+                                                    ? 'Tình nguyện viên này đã xác nhận tham gia. Bạn có chắc chắn muốn gỡ không?'
+                                                    : 'Bạn có chắc chắn muốn gỡ tình nguyện viên này khỏi ca?' ?>">
                                                     <i class="bi bi-person-dash"></i> Gỡ
                                                 </button>
                                             </form>

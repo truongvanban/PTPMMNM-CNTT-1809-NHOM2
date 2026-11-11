@@ -54,7 +54,8 @@ $userInitials = mb_strtoupper(mb_substr($userName ?: 'T', 0, 1));
                 </a>
 
                 <!-- User Profile Pill -->
-                <div class="d-none d-md-inline-flex align-items-center gap-2 bg-white bg-opacity-15 text-white px-3 py-1 rounded-pill border border-white border-opacity-20">
+                <div class="d-none d-md-inline-flex align-items-center gap-2 text-white px-3 py-1 rounded-pill border"
+                     style="background-color: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.2) !important;">
                     <span class="rounded-circle bg-warning text-dark fw-bold d-inline-flex align-items-center justify-content-center" style="width: 26px; height: 26px; font-size: 0.75rem;">
                         <?= htmlspecialchars($userInitials) ?>
                     </span>

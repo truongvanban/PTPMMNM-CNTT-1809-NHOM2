@@ -117,6 +117,9 @@ $isReportPage = str_contains($currentUri, '/coordinator/reports')
                 <a class="nav-link <?= str_contains($currentUri, '/coordinator/history') ? 'active' : '' ?>" href="<?= $baseUrl ?>/coordinator/history">
                     <i class="bi bi-clock-history"></i><span>Lịch sử phân công</span>
                 </a>
+                <a class="nav-link <?= str_contains($currentUri, '/coordinator/profile') ? 'active' : '' ?>" href="<?= $baseUrl ?>/coordinator/profile">
+                    <i class="bi bi-person-circle"></i><span>Hồ sơ cá nhân</span>
+                </a>
             </nav>
 
             <div class="activity-create-sidebar-user">
