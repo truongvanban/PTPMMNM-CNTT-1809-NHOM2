@@ -198,7 +198,7 @@ Hệ thống có các kịch bản mẫu trong CSDL để kiểm thử:
 4. Đăng nhập lại tài khoản **Điều phối viên** (`coord1@volunteerhub.vn`).
 5. Vào mục **"Duyệt báo vắng & Thay người"** (`/coordinator/replacement`):
    - Thấy yêu cầu báo vắng của `tnv1`.
-   - Hệ thống tự động lọc và gợi ý danh sách TNV **có đủ kỹ năng bắt buộc và không bị trùng với ca đã đăng ký hoặc được phân công**. Hệ thống chưa có chức năng khai báo lịch rảnh.
+   - Hệ thống tự động lọc và gợi ý danh sách TNV **có đủ kỹ năng bắt buộc và không bị trùng với ca đã đăng ký hoặc được phân công**.
    - Điều phối viên chọn 1 ứng viên thay thế và bấm **"Duyệt & Phân công người thay"**.
 6. Hệ thống tự động chuyển phân công, cập nhật trạng thái và gửi thông báo tới người thay thế.
 

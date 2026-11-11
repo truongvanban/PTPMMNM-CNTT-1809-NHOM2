@@ -63,9 +63,6 @@ $tables = [
     'volunteer_profiles', 'user_roles', 'users',
     'skills', 'roles', 'notifications', 'audit_logs'
 ];
-if ($pdo->query("SHOW TABLES LIKE 'availability'")->fetchColumn()) {
-    $tables[] = 'availability';
-}
 foreach ($tables as $table) {
     $pdo->exec("TRUNCATE TABLE `$table`");
 }
