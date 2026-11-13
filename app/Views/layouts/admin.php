@@ -3,11 +3,13 @@
  * Layout cho khu vực Quản trị viên (Admin)
  */
 use App\Core\Session;
+use App\Models\SkillRequestModel;
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
 $mainJsVersion = filemtime(dirname(__DIR__, 3) . '/public/assets/js/main.js');
 $styleVersion = filemtime(dirname(__DIR__, 3) . '/public/assets/css/style.css');
 $currentUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $userName = Session::userName();
+$pendingSkillRequestCount = (new SkillRequestModel())->countPending();
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -55,7 +57,12 @@ $userName = Session::userName();
                     <i class="bi bi-person-lines-fill"></i> Quản lý tài khoản
                 </a>
                 <a class="nav-link <?= str_contains($currentUri, '/admin/skills') ? 'active' : '' ?>" href="<?= $baseUrl ?>/admin/skills">
-                    <i class="bi bi-tags"></i> Quản lý danh mục kỹ năng
+                    <i class="bi bi-tags"></i> Quản lý kỹ năng
+                    <?php if ($pendingSkillRequestCount > 0): ?>
+                        <span class="badge rounded-pill bg-danger ms-auto" aria-label="<?= $pendingSkillRequestCount ?> yêu cầu kỹ năng chờ duyệt">
+                            <?= $pendingSkillRequestCount > 99 ? '99+' : $pendingSkillRequestCount ?>
+                        </span>
+                    <?php endif; ?>
                 </a>
                 <a class="nav-link <?= str_contains($currentUri, '/admin/activities') ? 'active' : '' ?>" href="<?= $baseUrl ?>/admin/activities">
                     <i class="bi bi-calendar3"></i> Quản lý toàn bộ hoạt động

@@ -450,8 +450,8 @@ class PointsModel extends BaseModel
                         TIMESTAMPDIFF(MINUTE, NOW(), TIMESTAMP(s.date, s.time_end)) AS minutes_until_end,
                         EXISTS(
                             SELECT 1 FROM replacement_requests rr
-                            WHERE rr.assignment_id = a.id AND rr.status = 'pending'
-                        ) AS has_pending_replacement,
+                            WHERE rr.assignment_id = a.id AND rr.status IN ('pending', 'approved')
+                        ) AS has_reported_absence,
                         act.coordinator_id
                  FROM assignments a
                  JOIN shifts s ON s.id = a.shift_id
@@ -461,7 +461,18 @@ class PointsModel extends BaseModel
             );
             $stmt->execute([$assignmentId, (int)$isAdmin, $coordinatorId]);
             $assignment = $stmt->fetch();
-            if (!$assignment || !in_array($assignment['status'], ['assigned', 'confirmed'], true)) {
+            if (!$assignment) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Phân công không hợp lệ hoặc đã được xử lý.'];
+            }
+            if ((int)$assignment['has_reported_absence'] === 1) {
+                $this->db->rollBack();
+                return [
+                    'success' => false,
+                    'message' => 'Tình nguyện viên này đã gửi yêu cầu báo vắng. Vui lòng vào mục \'Duyệt báo vắng\' để xử lý thay vì đánh dấu vắng không phép.',
+                ];
+            }
+            if (!in_array($assignment['status'], ['assigned', 'confirmed'], true)) {
                 $this->db->rollBack();
                 return ['success' => false, 'message' => 'Phân công không hợp lệ hoặc đã được xử lý.'];
             }
@@ -469,11 +480,6 @@ class PointsModel extends BaseModel
                 $this->db->rollBack();
                 return ['success' => false, 'message' => 'Chỉ có thể ghi nhận vắng mặt sau khi ca trực kết thúc.'];
             }
-            if ((int)$assignment['has_pending_replacement'] === 1) {
-                $this->db->rollBack();
-                return ['success' => false, 'message' => 'Không thể đánh dấu vắng khi yêu cầu báo vắng đang chờ xử lý.'];
-            }
-
             $this->db->prepare(
                 "UPDATE assignments SET status = 'absent', updated_at = NOW() WHERE id = ?"
             )->execute([$assignmentId]);

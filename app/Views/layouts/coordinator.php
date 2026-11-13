@@ -5,6 +5,7 @@
 use App\Core\Session;
 use App\Models\RegistrationModel;
 use App\Models\ReplacementModel;
+use App\Models\SkillRequestModel;
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
 $currentUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $userName = Session::userName();
@@ -12,6 +13,7 @@ $styleVersion = filemtime(dirname(__DIR__, 3) . '/public/assets/css/style.css');
 $coordinatorId = (int)Session::userId();
 $pendingRegistrationCount = (new RegistrationModel())->countPendingForCoordinator($coordinatorId);
 $pendingReplacementCount = (new ReplacementModel())->countPendingForCoordinator($coordinatorId);
+$pendingSkillRequestCount = (new SkillRequestModel())->countPending();
 $isActivityCreatePage = str_ends_with($currentUri, '/coordinator/activities/create');
 $isActivitySection = str_contains($currentUri, '/coordinator/activities')
     || str_contains($currentUri, '/coordinator/shifts');
@@ -96,15 +98,25 @@ $isReportPage = str_contains($currentUri, '/coordinator/reports')
                         </span>
                     <?php endif; ?>
                 </a>
+                <a class="nav-link coordinator-pending-link <?= str_contains($currentUri, '/skill-requests') ? 'active' : '' ?>" href="<?= $baseUrl ?>/coordinator/skill-requests">
+                    <i class="bi bi-patch-plus-fill"></i><span>Duyệt kỹ năng</span>
+                    <?php if ($pendingSkillRequestCount > 0): ?>
+                        <span class="badge rounded-pill bg-danger coordinator-pending-count"
+                              aria-label="<?= $pendingSkillRequestCount ?> yêu cầu kỹ năng chờ duyệt"
+                              title="<?= $pendingSkillRequestCount ?> yêu cầu kỹ năng chờ duyệt">
+                            <?= $pendingSkillRequestCount > 99 ? '99+' : $pendingSkillRequestCount ?>
+                        </span>
+                    <?php endif; ?>
+                </a>
 
                 <div class="coordinator-sidebar-heading">ĐIỀU PHỐI</div>
                 <a class="nav-link <?= $isAssignmentPage ? 'active' : '' ?>" href="<?= $baseUrl ?>/coordinator/assignment/run">
                     <i class="bi bi-diagram-3-fill"></i><span>Phân công TNV</span>
                 </a>
                 <a class="nav-link coordinator-pending-link <?= str_contains($currentUri, '/replacement') ? 'active' : '' ?>" href="<?= $baseUrl ?>/coordinator/replacement">
-                    <i class="bi bi-arrow-left-right"></i><span>Thay người</span>
+                    <i class="bi bi-arrow-left-right"></i><span>Báo vắng & Thay người</span>
                     <?php if ($pendingReplacementCount > 0): ?>
-                        <span class="badge rounded-pill bg-danger coordinator-pending-count"
+                        <span class="badge rounded-pill bg-danger coordinator-pending-count coordinator-pending-count-pulse"
                               aria-label="<?= $pendingReplacementCount ?> yêu cầu báo vắng chờ xử lý"
                               title="<?= $pendingReplacementCount ?> yêu cầu báo vắng chờ xử lý">
                             <?= $pendingReplacementCount > 99 ? '99+' : $pendingReplacementCount ?>

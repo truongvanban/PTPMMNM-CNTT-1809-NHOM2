@@ -21,6 +21,9 @@ $userInitials = mb_strtoupper(mb_substr($user['full_name'] ?? 'T', 0, 1));
                 <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">Tình nguyện viên</span>
             </p>
         </div>
+        <a class="btn btn-outline-success ms-auto" href="<?= $baseUrl ?>/volunteer/skills">
+            <i class="bi bi-patch-plus me-1"></i>Đề xuất kỹ năng mới
+        </a>
     </div>
 
     <form action="<?= $baseUrl ?>/volunteer/profile" method="POST">

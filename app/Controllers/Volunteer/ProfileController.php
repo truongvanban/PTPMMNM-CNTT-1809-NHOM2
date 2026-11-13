@@ -13,6 +13,7 @@ use App\Core\Session;
 use App\Models\Database;
 use App\Models\PointsModel;
 use App\Models\SkillModel;
+use App\Models\SkillRequestModel;
 use App\Models\UserModel;
 
 class ProfileController extends Controller
@@ -93,44 +94,34 @@ class ProfileController extends Controller
     public function skills(): void
     {
         $userId = (int)Session::userId();
-        $allSkills = $this->skillModel->getActive();
         $mySkills = $this->skillModel->getByUserId($userId);
-
-        $mySkillsMap = [];
-        foreach ($mySkills as $ms) {
-            $mySkillsMap[(int)$ms['id']] = $ms['level'];
-        }
+        $skillRequestModel = new SkillRequestModel();
+        $skillRequests = $skillRequestModel->getByUser($userId);
 
         $this->render('volunteer.skills', [
             'title'       => 'Quản Lý Kỹ Năng | VolunteerHub',
-            'allSkills'   => $allSkills,
-            'mySkillsMap' => $mySkillsMap,
+            'mySkills'    => $mySkills,
+            'skillRequests' => $skillRequests,
+            'monthlyRequestCount' => $skillRequestModel->countThisMonthForUser($userId),
             'csrfToken'   => Session::generateCsrf(),
             'success'     => Session::getFlash('success'),
             'error'       => Session::getFlash('error'),
         ]);
     }
 
-    public function updateSkills(): void
+    public function requestSkill(): void
     {
         $this->verifyCsrf();
         $userId = (int)Session::userId();
+        $postedName = $this->post('skill_name', '');
+        $postedProof = $this->post('proof', '');
+        $skillName = is_string($postedName) ? $postedName : '';
+        $proof = is_string($postedProof) ? $postedProof : '';
+        $result = (new SkillRequestModel())->createRequest($userId, $skillName, $proof);
 
-        $selectedSkills = $this->post('skills', []);
-        $levels = $this->post('levels', []);
-
-        $skillsWithLevel = [];
-        if (is_array($selectedSkills)) {
-            foreach ($selectedSkills as $skillId) {
-                $skillId = (int)$skillId;
-                $level = $levels[$skillId] ?? 'beginner';
-                $skillsWithLevel[$skillId] = $level;
-            }
-        }
-
-        $this->skillModel->syncVolunteerSkills($userId, $skillsWithLevel);
-
-        $this->redirect('/volunteer/skills', ['success' => 'Cập nhật kỹ năng thành công!']);
+        $this->redirect('/volunteer/skills', [
+            $result['success'] ? 'success' : 'error' => $result['message'],
+        ]);
     }
 
     public function changePasswordForm(): void

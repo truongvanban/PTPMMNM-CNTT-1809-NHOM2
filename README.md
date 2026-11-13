@@ -129,6 +129,7 @@ Seeder bổ sung chỉ chạy trong môi trường `development`, tự bỏ qua 
 Nếu đang nâng cấp cơ sở dữ liệu VolunteerHub đã tồn tại, hãy sao lưu trước rồi chạy migration **một lần**:
 ```powershell
 & "E:\xampp\mysql\bin\mysql.exe" -u root volunteerhub -e "source E:/xampp/htdocs/VolunteerHub/database/migrations/20261110_volunteer_gamification.sql"
+& "E:\xampp\mysql\bin\mysql.exe" -u root volunteerhub -e "source E:/xampp/htdocs/VolunteerHub/database/migrations/20261112_skill_requests.sql"
 ```
 
 ### Bước 5: Truy cập Website
@@ -264,7 +265,19 @@ C:\xampp\htdocs\VolunteerHub\scripts\expire_unconfirmed_assignments.php
 
 Thay đường dẫn theo vị trí cài XAMPP và thư mục dự án. Có thể chạy lệnh này thủ công để xử lý ngay các phân công đã quá hạn.
 
-## 11. Điểm cống hiến & Thi đua
+## 11. Tự động chốt yêu cầu báo vắng khi ca bắt đầu
+
+Yêu cầu báo vắng còn chờ khi ca bắt đầu sẽ được tự động duyệt, phân công được ghi nhận vắng có phép, và Điều phối viên cùng tình nguyện viên được thông báo. Điểm phạt báo vắng sát giờ (dưới 12 tiếng) được áp dụng ngay lúc tình nguyện viên gửi yêu cầu, không phụ thuộc việc Điều phối viên duyệt thủ công hay tác vụ tự động xử lý.
+
+Trong Windows Task Scheduler, tạo tác vụ chạy lặp lại mỗi 15 phút bằng `C:\xampp\php\php.exe` với đối số:
+
+```text
+C:\xampp\htdocs\VolunteerHub\scripts\auto_approve_started_shift_absences.php
+```
+
+Thay đường dẫn theo cài đặt XAMPP và thư mục dự án.
+
+## 12. Điểm cống hiến & Thi đua
 
 - Mỗi ca chỉ được cộng điểm khi Điều phối viên xác nhận hoàn thành, nhập số giờ thực tế và tùy chọn thưởng hoàn thành đúng giờ. Một tình nguyện viên chỉ được ghi nhận hoàn thành một lần cho mỗi ca.
 - Hệ số điểm gồm điểm/giờ, hệ số ca sớm/muộn, hệ số ca có kỹ năng bắt buộc và hệ số riêng của từng hoạt động; Admin cấu hình tại **Cấu hình điểm & Thi đua**.

@@ -21,6 +21,8 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                     <input type="text" class="form-control" id="category" name="category" placeholder="VD: Y tế, Ngoại ngữ, Truyền thông...">
                 </div>
 
+
+
                 <div class="mb-4">
                     <label for="description" class="form-label fw-semibold">Mô tả kỹ năng</label>
                     <textarea class="form-control" id="description" name="description" rows="3" placeholder="Mô tả tiêu chuẩn của kỹ năng này..."></textarea>
@@ -141,3 +143,30 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         </div>
     </div>
 </div>
+
+<section class="card border-0 shadow-sm rounded-4 p-4 mt-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h2 class="h4 fw-bold mb-1"><i class="bi bi-inbox text-primary me-2"></i>Yêu cầu bổ sung kỹ năng (<?= (int)$requestsTotal ?>)</h2>
+            <p class="text-muted small mb-0">Các yêu cầu đang chờ được ưu tiên hiển thị.</p>
+        </div>
+        <span class="badge text-bg-warning"><?= (int)$pendingSkillRequestCount ?> chờ duyệt</span>
+    </div>
+    <?php
+    $requestActionBase = '/admin/skills/requests';
+    require VIEW_PATH . '/components/skill_requests_table.php';
+    $pagination = [
+        'url' => $baseUrl . '/admin/skills',
+        'params' => [],
+        'page_param' => 'requests_page',
+        'size_id' => 'skill-requests-page-size',
+        'current_page' => $requestsPage,
+        'last_page' => $requestsLastPage,
+        'total' => $requestsTotal,
+        'per_page' => $requestPerPage,
+        'visible_count' => count($skillRequests),
+        'item_label' => 'yêu cầu kỹ năng',
+    ];
+    require VIEW_PATH . '/components/pagination.php';
+    ?>
+</section>

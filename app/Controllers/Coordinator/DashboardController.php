@@ -28,6 +28,7 @@ class DashboardController extends Controller
 
         $myActivities = $activityModel->getByCoordinator($coordId);
         $pendingReplacements = $replacementModel->getPendingForCoordinator($coordId);
+        $pendingUpcomingReplacementCount = $replacementModel->countPendingUpcomingForCoordinator($coordId);
 
         // Đếm tổng số ca trực thuộc quyền
         $shiftCountStmt = $db->prepare(
@@ -66,6 +67,7 @@ class DashboardController extends Controller
             'totalAssignments'    => $totalAssignments,
             'shortageShifts'      => $shortageShifts,
             'pendingReplacements' => $pendingReplacements,
+            'pendingUpcomingReplacementCount' => $pendingUpcomingReplacementCount,
             'success'             => Session::getFlash('success'),
             'error'               => Session::getFlash('error'),
         ]);

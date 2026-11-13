@@ -138,6 +138,125 @@ class ReplacementModel extends BaseModel
         return (int)$stmt->fetchColumn();
     }
 
+    public function countPendingUpcomingForCoordinator(int $coordinatorId): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM replacement_requests rr
+             JOIN assignments a ON rr.assignment_id = a.id
+             JOIN shifts s ON a.shift_id = s.id
+             JOIN activities act ON s.activity_id = act.id
+             WHERE act.coordinator_id = ? AND rr.status = 'pending'
+               AND TIMESTAMP(s.date, s.time_start) > NOW()
+               AND s.status <> 'cancelled' AND act.status <> 'cancelled'"
+        );
+        $stmt->execute([$coordinatorId]);
+        return (int)$stmt->fetchColumn();
+    }
+
+    public function autoApproveStartedShiftRequests(): int
+    {
+        $candidateStmt = $this->db->query(
+            "SELECT rr.id
+             FROM replacement_requests rr
+             JOIN assignments a ON a.id = rr.assignment_id
+             JOIN shifts s ON s.id = a.shift_id
+             JOIN activities act ON act.id = s.activity_id
+             WHERE rr.status = 'pending'
+               AND a.status IN ('assigned', 'confirmed')
+               AND TIMESTAMP(s.date, s.time_start) <= NOW()
+               AND s.status <> 'cancelled' AND act.status <> 'cancelled'
+             ORDER BY TIMESTAMP(s.date, s.time_start), rr.id"
+        );
+        $requestIds = $candidateStmt->fetchAll(PDO::FETCH_COLUMN);
+        $approvedCount = 0;
+
+        foreach ($requestIds as $requestId) {
+            try {
+                $this->db->beginTransaction();
+                $requestStmt = $this->db->prepare(
+                    "SELECT rr.id, rr.assignment_id, rr.requester_id, a.user_id,
+                            a.status AS assignment_status, s.id AS shift_id,
+                            s.name AS shift_name, s.date AS shift_date,
+                            act.coordinator_id, u.full_name AS requester_name
+                     FROM replacement_requests rr
+                     JOIN assignments a ON a.id = rr.assignment_id
+                     JOIN shifts s ON s.id = a.shift_id
+                     JOIN activities act ON act.id = s.activity_id
+                     JOIN users u ON u.id = rr.requester_id
+                     WHERE rr.id = ? AND rr.status = 'pending'
+                       AND a.status IN ('assigned', 'confirmed')
+                       AND TIMESTAMP(s.date, s.time_start) <= NOW()
+                       AND s.status <> 'cancelled' AND act.status <> 'cancelled'
+                     FOR UPDATE"
+                );
+                $requestStmt->execute([(int)$requestId]);
+                $request = $requestStmt->fetch();
+                if (!$request || (int)$request['requester_id'] !== (int)$request['user_id']) {
+                    $this->db->rollBack();
+                    continue;
+                }
+
+                $updateRequest = $this->db->prepare(
+                    "UPDATE replacement_requests
+                     SET status = 'approved', coordinator_note = 'Tự động duyệt khi ca bắt đầu',
+                         reviewed_by = NULL, reviewed_at = NOW(), updated_at = NOW()
+                     WHERE id = ? AND status = 'pending'"
+                );
+                $updateRequest->execute([(int)$request['id']]);
+                if ($updateRequest->rowCount() !== 1) {
+                    $this->db->rollBack();
+                    continue;
+                }
+
+                $this->db->prepare(
+                    "UPDATE assignments SET status = 'absent', updated_at = NOW()
+                     WHERE id = ? AND status IN ('assigned', 'confirmed')"
+                )->execute([(int)$request['assignment_id']]);
+                $this->db->prepare(
+                    "INSERT INTO attendance (assignment_id, user_id, shift_id, status, note)
+                     VALUES (?, ?, ?, 'absent', 'Tự động ghi nhận vắng có phép do yêu cầu báo vắng')
+                     ON DUPLICATE KEY UPDATE status = 'absent',
+                         note = 'Tự động ghi nhận vắng có phép do yêu cầu báo vắng',
+                         updated_at = NOW()"
+                )->execute([
+                    (int)$request['assignment_id'],
+                    (int)$request['user_id'],
+                    (int)$request['shift_id'],
+                ]);
+
+                $message = "Ca trực '{$request['shift_name']}' đã diễn ra nhưng bạn chưa xử lý yêu cầu báo vắng của {$request['requester_name']}. Hệ thống đã tự động duyệt đơn và ghi nhận vắng có phép.";
+                $this->db->prepare(
+                    "INSERT INTO notifications (user_id, type, title, message, link)
+                     VALUES (?, 'replacement', ?, ?, '/coordinator/replacement')"
+                )->execute([
+                    (int)$request['coordinator_id'],
+                    'Khẩn cấp: yêu cầu báo vắng được tự động xử lý',
+                    $message,
+                ]);
+                $this->db->prepare(
+                    "INSERT INTO notifications (user_id, type, title, message, link)
+                     VALUES (?, 'replacement', ?, ?, '/volunteer/schedule')"
+                )->execute([
+                    (int)$request['requester_id'],
+                    'Yêu cầu báo vắng đã được tự động duyệt',
+                    "Yêu cầu báo vắng ca '{$request['shift_name']}' ngày {$request['shift_date']} đã được tự động duyệt khi ca bắt đầu. Ca được ghi nhận vắng có phép.",
+                ]);
+
+                $this->db->commit();
+                $approvedCount++;
+            } catch (\Throwable $e) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+                error_log("[ReplacementModel] Không thể tự động duyệt yêu cầu #{$requestId}: " . $e->getMessage());
+                throw $e;
+            }
+        }
+
+        return $approvedCount;
+    }
+
     public function getPendingForCoordinatorPage(int $coordinatorId, int $page = 1, int $perPage = 15): array
     {
         $countStmt = $this->db->prepare(

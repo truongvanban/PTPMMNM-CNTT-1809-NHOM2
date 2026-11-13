@@ -34,7 +34,7 @@ class SkillRequestModel extends BaseModel
         $offset = ($page - 1) * $perPage;
         $limitSql = $perPage > 0 ? "LIMIT $perPage OFFSET $offset" : '';
         $stmt = $this->db->prepare(
-            "SELECT sr.*, u.full_name, u.email
+            "SELECT sr.*, u.full_name
              FROM skill_requests sr
              JOIN users u ON u.id = sr.user_id
              ORDER BY (sr.status = 'pending') DESC, sr.created_at DESC, sr.id DESC

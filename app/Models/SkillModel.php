@@ -50,20 +50,6 @@ class SkillModel extends BaseModel
         return $stmt->fetchAll();
     }
 
-    public function syncVolunteerSkills(int $userId, array $skillsWithLevel): void
-    {
-        $this->db->prepare("DELETE FROM volunteer_skills WHERE user_id = ?")->execute([$userId]);
-        if (empty($skillsWithLevel)) return;
-
-        $stmt = $this->db->prepare(
-            "INSERT INTO volunteer_skills (user_id, skill_id, level) VALUES (?, ?, ?)"
-        );
-        foreach ($skillsWithLevel as $skillId => $level) {
-            $level = in_array($level, ['beginner', 'intermediate', 'advanced'], true) ? $level : 'beginner';
-            $stmt->execute([$userId, (int)$skillId, $level]);
-        }
-    }
-
     public function create(string $name, string $category, string $description): int
     {
         $stmt = $this->db->prepare(

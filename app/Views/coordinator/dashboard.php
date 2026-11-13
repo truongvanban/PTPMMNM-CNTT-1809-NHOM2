@@ -16,6 +16,16 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
     </div>
 </div>
 
+<?php if ($pendingUpcomingReplacementCount > 0): ?>
+    <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 shadow-sm" role="alert">
+        <span>
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Có <?= (int)$pendingUpcomingReplacementCount ?> yêu cầu báo vắng đang chờ duyệt cho các ca trực sắp diễn ra. Vui lòng xử lý ngay!
+        </span>
+        <a href="<?= $baseUrl ?>/coordinator/replacement" class="btn btn-sm btn-warning fw-semibold">Xử lý báo vắng</a>
+    </div>
+<?php endif; ?>
+
 <!-- Metrics Row -->
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
