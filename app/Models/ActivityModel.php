@@ -147,7 +147,6 @@ class ActivityModel extends BaseModel
         int $page = 1,
         int $perPage = 15
     ): array {
-        $now = date('Y-m-d H:i:s');
         $where = ['coordinator_id = ?'];
         $params = [$coordinatorId];
         if ($status !== '') {
@@ -155,12 +154,10 @@ class ActivityModel extends BaseModel
             // - 'completed' bao gồm cả hoạt động status='open'/'ongoing' nhưng đã qua date_end.
             // - 'open'/'ongoing' không bao gồm hoạt động đã qua date_end (bị coi là completed).
             if ($status === 'completed') {
-                $where[] = "(status = 'completed' OR (status IN ('open','ongoing') AND date_end IS NOT NULL AND date_end <> '' AND date_end < ?))";
-                $params[] = $now;
+                $where[] = "(status = 'completed' OR (status IN ('open','ongoing') AND date_end IS NOT NULL AND date_end < NOW()))";
             } elseif ($status === 'open' || $status === 'ongoing') {
-                $where[] = "status = ? AND (date_end IS NULL OR date_end = '' OR date_end >= ?)";
+                $where[] = "status = ? AND (date_end IS NULL OR date_end >= NOW())";
                 $params[] = $status;
-                $params[] = $now;
             } else {
                 $where[] = 'status = ?';
                 $params[] = $status;
