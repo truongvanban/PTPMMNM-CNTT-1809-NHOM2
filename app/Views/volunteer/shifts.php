@@ -1,140 +1,315 @@
 <?php
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
+
+// Tính tổng số ca có sẵn và số ca đã đăng ký của user
+$totalAvailableShifts = count($shifts);
+$myRegisteredCount = 0;
+foreach ($shifts as $_s) {
+    if (!empty($_s['my_reg_id']) && in_array($_s['my_reg_status'], ['approved', 'pending'], true)) {
+        $myRegisteredCount++;
+    }
+}
 ?>
-<div class="card border-0 shadow-sm rounded-4 p-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h1 class="h4 fw-bold mb-1">Ca Trực Đang Mở Đăng Ký</h1>
-            <p class="text-muted small mb-0">Lựa chọn các ca phù hợp với thời gian và kỹ năng của bạn để đăng ký tham gia</p>
+<div class="volunteer-shift-page">
+
+    <!-- Hero Section -->
+    <div class="shift-hero">
+        <div class="shift-hero-icon">
+            <i class="bi bi-calendar-event-fill"></i>
         </div>
-        <a href="<?= $baseUrl ?>/volunteer/my-registrations" class="btn btn-outline-success btn-sm">
+        <div class="shift-hero-content">
+            <h1 class="shift-hero-title">Ca Trực Đang Mở Đăng Ký</h1>
+            <p class="shift-hero-subtitle">Chọn các ca phù hợp với lịch trình và kỹ năng của bạn để đăng ký tham gia tình nguyện.</p>
+        </div>
+        <div class="shift-hero-stats">
+            <div class="shift-stat-item">
+                <span class="shift-stat-number"><?= $totalAvailableShifts ?></span>
+                <span class="shift-stat-label">Ca trực mở</span>
+            </div>
+            <div class="shift-stat-item">
+                <span class="shift-stat-number text-success"><?= $myRegisteredCount ?></span>
+                <span class="shift-stat-label">Ca bạn đã đăng ký</span>
+            </div>
+        </div>
+        <a href="<?= $baseUrl ?>/volunteer/my-registrations" class="shift-hero-cta">
             <i class="bi bi-card-checklist me-1"></i> Xem ca đã đăng ký
         </a>
     </div>
 
-    <form action="<?= $baseUrl ?>/volunteer/shifts" method="GET" class="row g-2 align-items-end mb-4 p-3 rounded-3 bg-light border">
-        <div class="col-md-5">
-            <label for="shift-filter-activity" class="form-label small fw-semibold">Lọc theo hoạt động</label>
-            <select id="shift-filter-activity" name="activity_id" class="form-select">
-                <option value="">Tất cả hoạt động</option>
-                <?php foreach ($activities as $activity): ?>
-                    <option value="<?= (int)$activity['id'] ?>" <?= $activityId === (int)$activity['id'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($activity['title'], ENT_QUOTES, 'UTF-8') ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
+    <!-- Filter Bar -->
+    <form action="<?= $baseUrl ?>/volunteer/shifts" method="GET" class="shift-filter-card">
+        <div class="shift-filter-header">
+            <i class="bi bi-funnel-fill text-success"></i>
+            <span class="shift-filter-title">Bộ lọc & Tìm kiếm</span>
         </div>
-        <div class="col-md-5">
-            <label for="shift-filter-skill" class="form-label small fw-semibold">Lọc theo kỹ năng yêu cầu</label>
-            <select id="shift-filter-skill" name="skill_id" class="form-select">
-                <option value="">Tất cả kỹ năng</option>
-                <?php foreach ($requiredSkills as $requiredSkill): ?>
-                    <option value="<?= (int)$requiredSkill['id'] ?>" <?= $skillId === (int)$requiredSkill['id'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($requiredSkill['name'], ENT_QUOTES, 'UTF-8') ?>
-                        <?php if (!empty($requiredSkill['category'])): ?>
-                            (<?= htmlspecialchars($requiredSkill['category'], ENT_QUOTES, 'UTF-8') ?>)
-                        <?php endif; ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-md-2 d-flex gap-2">
-            <button type="submit" class="btn btn-success flex-grow-1">
-                <i class="bi bi-funnel me-1"></i> Lọc
-            </button>
-            <?php if ($activityId > 0 || $skillId > 0): ?>
-                <a href="<?= $baseUrl ?>/volunteer/shifts" class="btn btn-outline-secondary" aria-label="Xóa bộ lọc" title="Xóa bộ lọc">
-                    <i class="bi bi-x-lg"></i>
-                </a>
-            <?php endif; ?>
+        <div class="shift-filter-body row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="shift-filter-label">Tìm kiếm</label>
+                <input type="text" name="q" class="shift-filter-input" placeholder="Tên ca, hoạt động, địa điểm..." value="<?= isset($q) ? htmlspecialchars($q, ENT_QUOTES, 'UTF-8') : '' ?>">
+            </div>
+            <div class="col-md-3">
+                <label class="shift-filter-label">Hoạt động</label>
+                <select name="activity_id" class="shift-filter-select">
+                    <option value="">Tất cả hoạt động</option>
+                    <?php foreach ($activities as $activity): ?>
+                        <option value="<?= (int)$activity['id'] ?>" <?= $activityId === (int)$activity['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($activity['title'], ENT_QUOTES, 'UTF-8') ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="shift-filter-label">Kỹ năng yêu cầu</label>
+                <select name="skill_id" class="shift-filter-select">
+                    <option value="">Tất cả kỹ năng</option>
+                    <?php foreach ($requiredSkills as $requiredSkill): ?>
+                        <option value="<?= (int)$requiredSkill['id'] ?>" <?= $skillId === (int)$requiredSkill['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($requiredSkill['name'], ENT_QUOTES, 'UTF-8') ?>
+                            <?php if (!empty($requiredSkill['category'])): ?>
+                                (<?= htmlspecialchars($requiredSkill['category'], ENT_QUOTES, 'UTF-8') ?>)
+                            <?php endif; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="shift-filter-btn flex-grow-1">
+                    <i class="bi bi-search me-1"></i> Áp dụng
+                </button>
+                <?php if ($activityId > 0 || $skillId > 0 || !empty($q)): ?>
+                    <a href="<?= $baseUrl ?>/volunteer/shifts" class="shift-filter-reset" title="Xóa bộ lọc">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                <?php endif; ?>
+            </div>
         </div>
     </form>
 
+    <!-- Shifts Grid -->
     <?php if (empty($shifts)): ?>
-        <div class="p-5 text-center text-muted">
-            <i class="bi bi-calendar-x fs-1"></i>
-            <h2 class="h5 mt-2">Không tìm thấy ca trực phù hợp</h2>
-            <p class="small">Thử đổi hoạt động hoặc kỹ năng yêu cầu để xem thêm ca trực.</p>
+        <div class="shift-empty-state">
+            <div class="shift-empty-icon">
+                <i class="bi bi-calendar-x"></i>
+            </div>
+            <h2 class="shift-empty-title">Không tìm thấy ca trực phù hợp</h2>
+            <p class="shift-empty-desc">Thử thay đổi hoạt động hoặc kỹ năng yêu cầu để xem thêm ca trực.</p>
+            <?php if ($activityId > 0 || $skillId > 0 || !empty($q)): ?>
+                <a href="<?= $baseUrl ?>/volunteer/shifts" class="shift-empty-btn">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Xóa tất cả bộ lọc
+                </a>
+            <?php endif; ?>
         </div>
     <?php else: ?>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle table-custom mb-0">
-                <thead>
-                    <tr>
-                        <th>Ca trực & Hoạt động</th>
-                        <th>Địa điểm & Ngày</th>
-                        <th>Thời gian ca</th>
-                        <th>Yêu cầu kỹ năng</th>
-                        <th>Đăng ký & phân công</th>
-                        <th class="text-center">Chi tiết & đăng ký</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($shifts as $s): ?>
-                        <?php
-                            $isRegistered = !empty($s['my_reg_id']) && in_array($s['my_reg_status'], ['approved', 'pending'], true);
-                            $registeredCount = (int)$s['registered_count'];
-                            $assignedCount = (int)$s['assigned_count'];
-                            $maxVolunteers = (int)$s['max_volunteers'];
-                            $isFull = max($registeredCount, $assignedCount) >= $maxVolunteers;
-                        ?>
-                        <tr>
-                            <td>
-                                <div class="fw-bold text-dark"><?= htmlspecialchars($s['name']) ?></div>
-                                <small class="text-success fw-semibold"><i class="bi bi-flag me-1"></i><?= htmlspecialchars($s['activity_title']) ?></small>
-                            </td>
-                            <td>
-                                <div><i class="bi bi-calendar3 me-1 text-primary"></i><?= date('d/m/Y', strtotime($s['date'])) ?></div>
-                                <small class="text-muted"><i class="bi bi-geo-alt me-1"></i><?= htmlspecialchars($s['activity_location'] ?? 'Chưa rõ') ?></small>
-                            </td>
-                            <td>
-                                <span class="badge bg-light text-dark border">
-                                    <?= substr($s['time_start'], 0, 5) ?> - <?= substr($s['time_end'], 0, 5) ?>
+        <div class="shift-grid">
+            <?php foreach ($shifts as $s): ?>
+                <?php
+                    $shiftId = (int)$s['id'];
+                    $isRegistered = !empty($s['my_reg_id']) && in_array($s['my_reg_status'], ['approved', 'pending'], true);
+                    $registeredCount = (int)$s['registered_count'];
+                    $assignedCount = (int)$s['assigned_count'];
+                    $maxVolunteers = (int)$s['max_volunteers'];
+                    $isFull = max($registeredCount, $assignedCount) >= $maxVolunteers;
+                    $registrationPct = $maxVolunteers > 0 ? min(100, round((max($registeredCount, $assignedCount) / $maxVolunteers) * 100)) : 0;
+                    $shiftDate = date('d/m/Y', strtotime($s['date']));
+                    $shiftTime = substr($s['time_start'], 0, 5) . ' - ' . substr($s['time_end'], 0, 5);
+                    $shiftLocation = htmlspecialchars($s['location'] ?: ($s['activity_location'] ?? 'Chưa rõ'), ENT_QUOTES, 'UTF-8');
+                    $shiftName = htmlspecialchars($s['name'], ENT_QUOTES, 'UTF-8');
+                    $activityTitle = htmlspecialchars($s['activity_title'], ENT_QUOTES, 'UTF-8');
+                    $requiredSkills = htmlspecialchars($s['required_skills'] ?? '', ENT_QUOTES, 'UTF-8');
+                ?>
+                <div class="shift-card <?= $isRegistered ? 'shift-card-registered' : '' ?> <?= $isFull ? 'shift-card-full' : '' ?>">
+                    <div class="shift-card-header">
+                        <div class="shift-card-badge">
+                            <i class="bi bi-flag text-success"></i> <?= $activityTitle ?>
+                        </div>
+                        <h3 class="shift-card-title"><?= $shiftName ?></h3>
+                    </div>
+
+                    <div class="shift-card-body">
+                        <!-- Date & Time -->
+                        <div class="shift-info-row">
+                            <span class="shift-info-icon"><i class="bi bi-calendar3"></i></span>
+                            <span class="shift-info-text"><strong>Ngày:</strong> <?= $shiftDate ?></span>
+                        </div>
+                        <div class="shift-info-row">
+                            <span class="shift-info-icon"><i class="bi bi-clock"></i></span>
+                            <span class="shift-info-text"><strong>Thời gian:</strong> <?= $shiftTime ?></span>
+                        </div>
+                        <div class="shift-info-row">
+                            <span class="shift-info-icon"><i class="bi bi-geo-alt"></i></span>
+                            <span class="shift-info-text"><strong>Địa điểm:</strong> <?= $shiftLocation ?></span>
+                        </div>
+
+                        <!-- Skills -->
+                        <?php if (!empty($requiredSkills) && $requiredSkills !== 'Không yêu cầu kỹ năng cụ thể'): ?>
+                            <div class="shift-info-row mt-3">
+                                <span class="shift-info-icon"><i class="bi bi-star-fill text-warning"></i></span>
+                                <span class="shift-info-text"><strong>Kỹ năng:</strong> <?= $requiredSkills ?></span>
+                            </div>
+                        <?php endif; ?>
+
+                        <!-- Registration Progress -->
+                        <div class="shift-progress-wrapper mt-4">
+                            <div class="shift-progress-header d-flex justify-content-between align-items-center mb-1">
+                                <span class="shift-progress-label">Đã đăng ký / Sức chứa</span>
+                                <span class="shift-progress-value fw-bold">
+                                    <?= max($registeredCount, $assignedCount) ?> / <?= $maxVolunteers ?>
                                 </span>
-                            </td>
-                            <td>
-                                <?php if (!empty($s['required_skills'])): ?>
-                                    <span class="badge bg-warning-soft text-dark"><i class="bi bi-star-fill text-warning me-1"></i><?= htmlspecialchars($s['required_skills']) ?></span>
-                                <?php else: ?>
-                                    <span class="text-muted small">Mọi tình nguyện viên</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <div class="fw-semibold <?= $isFull ? 'text-danger' : 'text-dark' ?>">
-                                    Đã đăng ký: <?= $registeredCount ?> / <?= $maxVolunteers ?>
-                                </div>
-                                <small class="text-muted d-block">
-                                    Đã phân công: <?= $assignedCount ?> / <?= $maxVolunteers ?>
-                                </small>
-                            </td>
-                            <td class="text-center">
-                                <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
-                                <button type="button" class="btn btn-outline-primary btn-sm px-3"
-                                        data-bs-toggle="modal" data-bs-target="#shift-detail-<?= (int)$s['id'] ?>">
-                                    <i class="bi bi-info-circle me-1"></i> Chi tiết
+                            </div>
+                            <div class="shift-progress-bar">
+                                <div class="shift-progress-fill <?= $isFull ? 'bg-danger' : 'bg-success' ?>" style="width: <?= $registrationPct ?>%"></div>
+                            </div>
+                            <small class="shift-progress-hint text-muted mt-1">
+                                <?= $isFull ? 'Ca này đã đăng ký đủ số lượng.' : 'Còn ' . ($maxVolunteers - max($registeredCount, $assignedCount)) . ' chỗ trống.' ?>
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="shift-card-footer">
+                        <?php if ($isRegistered): ?>
+                            <span class="shift-badge-registered">
+                                <i class="bi bi-check2-circle me-1"></i> Đã đăng ký
+                            </span>
+                        <?php elseif ($isFull): ?>
+                            <button type="button" class="shift-btn-full disabled">
+                                <i class="bi bi-people-fill me-1"></i> Đã đủ đăng ký
+                            </button>
+                        <?php else: ?>
+                            <form action="<?= $baseUrl ?>/volunteer/register" method="POST" class="shift-register-form d-inline">
+                                <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="shift_id" value="<?= $shiftId ?>">
+                                <button type="submit" class="shift-btn-register">
+                                    <i class="bi bi-plus-lg me-1"></i> Đăng ký ca này
                                 </button>
+                            </form>
+                        <?php endif; ?>
+                        <button type="button" class="shift-btn-detail"
+                                data-bs-toggle="modal" data-bs-target="#shift-detail-<?= $shiftId ?>">
+                            <i class="bi bi-info-circle me-1"></i> Chi tiết
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal: Chi tiết ca trực -->
+                <div class="modal fade" id="shift-detail-<?= $shiftId ?>" tabindex="-1"
+                     aria-labelledby="shift-detail-label-<?= $shiftId ?>" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content border-0 shadow">
+                            <div class="modal-header bg-light border-0">
+                                <div class="d-flex align-items-center">
+                                    <div class="shift-modal-avatar bg-success bg-opacity-10 text-success rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                        <i class="bi bi-calendar-event fs-4"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <span class="shift-modal-activity small text-success fw-semibold"><?= $activityTitle ?></span>
+                                        <h5 class="shift-modal-title mb-0"><?= $shiftName ?></h5>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                            </div>
+
+                            <div class="modal-body">
+                                <?php if (!empty($s['description'])): ?>
+                                    <div class="shift-modal-section mb-4">
+                                        <h6 class="shift-modal-section-title"><i class="bi bi-info-circle me-1 text-success"></i> Mô tả ca trực</h6>
+                                        <p class="shift-modal-text"><?= nl2br(htmlspecialchars($s['description'], ENT_QUOTES, 'UTF-8')) ?></p>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($s['activity_description'])): ?>
+                                    <div class="shift-modal-section mb-4">
+                                        <h6 class="shift-modal-section-title"><i class="bi bi-book me-1 text-success"></i> Giới thiệu hoạt động</h6>
+                                        <p class="shift-modal-text"><?= nl2br(htmlspecialchars($s['activity_description'], ENT_QUOTES, 'UTF-8')) ?></p>
+                                    </div>
+                                <?php endif; ?>
+
+                                <div class="shift-modal-details">
+                                    <div class="shift-detail-item">
+                                        <span class="shift-detail-icon text-primary"><i class="bi bi-calendar3"></i></span>
+                                        <div>
+                                            <span class="shift-detail-label small text-muted d-block">Ngày</span>
+                                            <span class="shift-detail-value fw-semibold"><?= $shiftDate ?></span>
+                                        </div>
+                                    </div>
+                                    <div class="shift-detail-item">
+                                        <span class="shift-detail-icon text-primary"><i class="bi bi-clock"></i></span>
+                                        <div>
+                                            <span class="shift-detail-label small text-muted d-block">Thời gian</span>
+                                            <span class="shift-detail-value fw-semibold"><?= $shiftTime ?></span>
+                                        </div>
+                                    </div>
+                                    <div class="shift-detail-item">
+                                        <span class="shift-detail-icon text-primary"><i class="bi bi-geo-alt"></i></span>
+                                        <div>
+                                            <span class="shift-detail-label small text-muted d-block">Địa điểm</span>
+                                            <span class="shift-detail-value fw-semibold"><?= $shiftLocation ?></span>
+                                        </div>
+                                    </div>
+                                    <div class="shift-detail-item">
+                                        <span class="shift-detail-icon text-primary"><i class="bi bi-people"></i></span>
+                                        <div>
+                                            <span class="shift-detail-label small text-muted d-block">Số lượng</span>
+                                            <span class="shift-detail-value fw-semibold"><?= (int)$s['min_volunteers'] ?>–<?= $maxVolunteers ?> người</span>
+                                        </div>
+                                    </div>
+                                    <div class="shift-detail-item">
+                                        <span class="shift-detail-icon text-primary"><i class="bi bi-check2-circle"></i></span>
+                                        <div>
+                                            <span class="shift-detail-label small text-muted d-block">Đã đăng ký</span>
+                                            <span class="shift-detail-value fw-semibold"><?= max($registeredCount, $assignedCount) ?> / <?= $maxVolunteers ?> người</span>
+                                        </div>
+                                    </div>
+                                    <div class="shift-detail-item">
+                                        <span class="shift-detail-icon text-primary"><i class="bi bi-star"></i></span>
+                                        <div>
+                                            <span class="shift-detail-label small text-muted d-block">Kỹ năng yêu cầu</span>
+                                            <span class="shift-detail-value fw-semibold"><?= !empty($requiredSkills) ? $requiredSkills : 'Không yêu cầu kỹ năng cụ thể' ?></span>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($s['registration_deadline'])): ?>
+                                        <div class="shift-detail-item">
+                                            <span class="shift-detail-icon text-warning"><i class="bi bi-hourglass-split"></i></span>
+                                            <div>
+                                                <span class="shift-detail-label small text-muted d-block">Hạn đăng ký</span>
+                                                <span class="shift-detail-value fw-semibold"><?= date('H:i d/m/Y', strtotime($s['registration_deadline'])) ?></span>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+
+                            <div class="modal-footer border-0 pt-4">
                                 <?php if ($isRegistered): ?>
-                                    <span class="badge bg-success-soft text-success"><i class="bi bi-check2 me-1"></i> Đã đăng ký</span>
+                                    <span class="shift-badge-registered">
+                                        <i class="bi bi-check2 me-1"></i> Bạn đã đăng ký ca này
+                                    </span>
                                 <?php elseif ($isFull): ?>
-                                    <button type="button" class="btn btn-secondary btn-sm px-3" disabled>
+                                    <button type="button" class="shift-btn-full disabled">
                                         <i class="bi bi-people-fill me-1"></i> Đã đủ đăng ký
                                     </button>
                                 <?php else: ?>
-                                    <form action="<?= $baseUrl ?>/volunteer/register" method="POST" class="d-inline">
-                                        <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
-                                        <input type="hidden" name="shift_id" value="<?= $s['id'] ?>">
-                                        <button type="submit" class="btn btn-success btn-sm px-3">
-                                            <i class="bi bi-plus-lg me-1"></i> Đăng ký
-                                        </button>
-                                    </form>
+                                    <div class="shift-register-modal-card p-3 rounded-3 border">
+                                        <label class="shift-modal-note-label small fw-semibold text-muted mb-2 d-block">
+                                            <i class="bi bi-pencil-square me-1"></i> Ghi chú thêm (không bắt buộc)
+                                        </label>
+                                        <form action="<?= $baseUrl ?>/volunteer/register" method="POST" class="d-inline">
+                                            <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                            <input type="hidden" name="shift_id" value="<?= $shiftId ?>">
+                                            <textarea name="note" class="shift-modal-note-textarea" rows="2" maxlength="500" placeholder="Thông tin thêm cho điều phối viên..."></textarea>
+                                            <button type="submit" class="shift-btn-register mt-2 w-auto">
+                                                <i class="bi bi-plus-lg me-1"></i> Đăng ký ca này
+                                            </button>
+                                        </form>
+                                    </div>
                                 <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
+
+        <!-- Pagination -->
         <?php
         $pagination = array_merge($pagination ?? [], [
             'url' => $baseUrl . '/volunteer/shifts',
@@ -144,78 +319,6 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         ]);
         require VIEW_PATH . '/components/pagination.php';
         ?>
-        <?php foreach ($shifts as $s): ?>
-            <?php
-            $shiftId = (int)$s['id'];
-            $isRegistered = !empty($s['my_reg_id']) && in_array($s['my_reg_status'], ['approved', 'pending'], true);
-            $registeredCount = (int)$s['registered_count'];
-            $assignedCount = (int)$s['assigned_count'];
-            $maxVolunteers = (int)$s['max_volunteers'];
-            $isFull = max($registeredCount, $assignedCount) >= $maxVolunteers;
-            ?>
-            <div class="modal fade" id="shift-detail-<?= $shiftId ?>" tabindex="-1"
-                 aria-labelledby="shift-detail-label-<?= $shiftId ?>" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content border-0 shadow">
-                        <div class="modal-header">
-                            <div>
-                                <span class="small text-success fw-semibold"><?= htmlspecialchars($s['activity_title'], ENT_QUOTES, 'UTF-8') ?></span>
-                                <h2 class="modal-title fs-5 fw-bold" id="shift-detail-label-<?= $shiftId ?>">
-                                    <?= htmlspecialchars($s['name'], ENT_QUOTES, 'UTF-8') ?>
-                                </h2>
-                            </div>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-                        </div>
-                        <div class="modal-body">
-                            <?php if (!empty($s['description'])): ?>
-                                <p class="mb-3"><?= nl2br(htmlspecialchars($s['description'], ENT_QUOTES, 'UTF-8')) ?></p>
-                            <?php endif; ?>
-                            <?php if (!empty($s['activity_description'])): ?>
-                                <div class="mb-3">
-                                    <h3 class="h6 fw-bold">Giới thiệu hoạt động</h3>
-                                    <p class="text-secondary mb-0"><?= nl2br(htmlspecialchars($s['activity_description'], ENT_QUOTES, 'UTF-8')) ?></p>
-                                </div>
-                            <?php endif; ?>
-                            <dl class="row small mb-0">
-                                <dt class="col-5"><i class="bi bi-calendar3 me-1 text-primary"></i>Ngày</dt>
-                                <dd class="col-7"><?= date('d/m/Y', strtotime($s['date'])) ?></dd>
-                                <dt class="col-5"><i class="bi bi-clock me-1 text-primary"></i>Thời gian</dt>
-                                <dd class="col-7"><?= substr($s['time_start'], 0, 5) ?> - <?= substr($s['time_end'], 0, 5) ?></dd>
-                                <dt class="col-5"><i class="bi bi-geo-alt me-1 text-primary"></i>Địa điểm</dt>
-                                <dd class="col-7"><?= htmlspecialchars($s['location'] ?: ($s['activity_location'] ?? 'Chưa rõ'), ENT_QUOTES, 'UTF-8') ?></dd>
-                                <dt class="col-5"><i class="bi bi-people me-1 text-primary"></i>Số lượng</dt>
-                                <dd class="col-7"><?= (int)$s['min_volunteers'] ?>–<?= $maxVolunteers ?> người</dd>
-                                <dt class="col-5"><i class="bi bi-check2-circle me-1 text-primary"></i>Đã đăng ký</dt>
-                                <dd class="col-7"><?= max($registeredCount, $assignedCount) ?> / <?= $maxVolunteers ?> người</dd>
-                                <dt class="col-5"><i class="bi bi-star me-1 text-primary"></i>Kỹ năng</dt>
-                                <dd class="col-7"><?= htmlspecialchars($s['required_skills'] ?: 'Không yêu cầu kỹ năng cụ thể', ENT_QUOTES, 'UTF-8') ?></dd>
-                                <?php if (!empty($s['registration_deadline'])): ?>
-                                    <dt class="col-5"><i class="bi bi-hourglass-split me-1 text-primary"></i>Hạn đăng ký</dt>
-                                    <dd class="col-7"><?= date('H:i d/m/Y', strtotime($s['registration_deadline'])) ?></dd>
-                                <?php endif; ?>
-                            </dl>
-                        </div>
-                        <div class="modal-footer">
-                            <?php if ($isRegistered): ?>
-                                <span class="badge bg-success-soft text-success"><i class="bi bi-check2 me-1"></i>Đã đăng ký</span>
-                            <?php elseif ($isFull): ?>
-                                <button type="button" class="btn btn-secondary" disabled>Đã đủ đăng ký</button>
-                            <?php else: ?>
-                                <form action="<?= $baseUrl ?>/volunteer/register" method="POST" class="d-inline">
-                                    <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                    <input type="hidden" name="shift_id" value="<?= $shiftId ?>">
-                                    <label for="shift-registration-note-<?= $shiftId ?>" class="form-label small text-muted">Ghi chú (không bắt buộc)</label>
-                                    <textarea id="shift-registration-note-<?= $shiftId ?>" name="note" class="form-control form-control-sm mb-2" rows="2" maxlength="500" placeholder="Thông tin thêm cho điều phối viên"></textarea>
-                                    <button type="submit" class="btn btn-success">
-                                        <i class="bi bi-plus-lg me-1"></i> Đăng ký ca này
-                                    </button>
-                                </form>
-                            <?php endif; ?>
-                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        <?php endforeach; ?>
     <?php endif; ?>
+
 </div>
