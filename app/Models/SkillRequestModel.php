@@ -79,10 +79,12 @@ class SkillRequestModel extends BaseModel
         return (int)$stmt->fetchColumn();
     }
 
-    public function createRequest(int $userId, string $skillName, string $proof): array
+    public function createRequest(int $userId, string $skillName, string $proof, string $category = '', string $level = 'beginner'): array
     {
         $skillName = trim($skillName);
         $proof = trim($proof);
+        $category = trim($category);
+        $level = in_array($level, ['beginner', 'intermediate', 'advanced']) ? $level : 'beginner';
         if ($userId <= 0 || mb_strlen($skillName) < 2 || mb_strlen($skillName) > 150) {
             return ['success' => false, 'message' => 'Tên kỹ năng phải từ 2 đến 150 ký tự.'];
         }
@@ -134,10 +136,10 @@ class SkillRequestModel extends BaseModel
             }
 
             $stmt = $this->db->prepare(
-                "INSERT INTO skill_requests (user_id, skill_name, proof, status)
-                 VALUES (?, ?, ?, 'pending')"
+                "INSERT INTO skill_requests (user_id, skill_name, category, level, proof, status)
+                 VALUES (?, ?, ?, ?, ?, 'pending')"
             );
-            $stmt->execute([$userId, $skillName, $proof]);
+            $stmt->execute([$userId, $skillName, $category ?: null, $level, $proof]);
             $this->db->commit();
             return ['success' => true, 'message' => 'Đã gửi yêu cầu bổ sung kỹ năng để Admin xét duyệt.'];
         } catch (Throwable $e) {
@@ -149,7 +151,7 @@ class SkillRequestModel extends BaseModel
         }
     }
 
-    public function approve(int $requestId): array
+    public function approve(int $requestId, ?string $overrideCategory = null, ?string $overrideLevel = null): array
     {
         try {
             $this->db->beginTransaction();
@@ -164,6 +166,16 @@ class SkillRequestModel extends BaseModel
             }
 
             $skillName = trim((string)$request['skill_name']);
+
+            // Xác định danh mục: ưu tiên override từ Admin/Điều phối viên, sau đó từ yêu cầu của TNV, cuối cùng là "Khác"
+            $category = $overrideCategory ?: ($request['category'] ?: 'Khác');
+
+            // Xác định trình độ: ưu tiên override từ Admin/Điều phối viên, sau đó từ yêu cầu của TNV, cuối cùng là "beginner"
+            $level = $overrideLevel ?: ($request['level'] ?: 'beginner');
+            if (!in_array($level, ['beginner', 'intermediate', 'advanced'])) {
+                $level = 'beginner';
+            }
+
             $skillStmt = $this->db->prepare(
                 "SELECT id FROM skills
                  WHERE LOWER(TRIM(name)) = LOWER(?)
@@ -175,19 +187,26 @@ class SkillRequestModel extends BaseModel
             if ($skillId === false) {
                 $insertSkill = $this->db->prepare(
                     "INSERT INTO skills (name, category, description, is_active)
-                     VALUES (?, 'Khác', NULL, 1)
+                     VALUES (?, ?, NULL, 1)
                      ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)"
                 );
-                $insertSkill->execute([$skillName]);
+                $insertSkill->execute([$skillName, $category]);
                 $skillId = $this->db->lastInsertId();
+            } else {
+                // Nếu kỹ năng đã tồn tại, cập nhật danh mục nếu admin override
+                if ($overrideCategory !== null) {
+                    $this->db->prepare(
+                        "UPDATE skills SET category = ?, updated_at = NOW() WHERE id = ?"
+                    )->execute([$overrideCategory, $skillId]);
+                }
             }
 
             $volunteerSkillStmt = $this->db->prepare(
                 "INSERT INTO volunteer_skills (user_id, skill_id, level)
-                 VALUES (?, ?, 'beginner')
-                 ON DUPLICATE KEY UPDATE skill_id = VALUES(skill_id)"
+                 VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE skill_id = VALUES(skill_id), level = VALUES(level)"
             );
-            $volunteerSkillStmt->execute([(int)$request['user_id'], (int)$skillId]);
+            $volunteerSkillStmt->execute([(int)$request['user_id'], (int)$skillId, $level]);
 
             $this->db->prepare(
                 "UPDATE skill_requests SET status = 'approved', admin_note = NULL, updated_at = NOW()

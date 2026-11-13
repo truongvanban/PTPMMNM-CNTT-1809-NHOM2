@@ -43,6 +43,27 @@ $skillRequestStatus = [
                                 <div class="d-flex flex-column gap-2">
                                     <form action="<?= $baseUrl . $requestActionBase ?>/<?= (int)$request['id'] ?>/approve" method="POST">
                                         <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                        <div class="mb-2">
+                                            <label class="form-label small fw-semibold">Danh mục</label>
+                                            <select class="form-select form-select-sm" name="category">
+                                                <option value="" <?= empty($request['category']) ? 'selected' : '' ?>><?= htmlspecialchars($request['category'] ?: '-- Giữ mặc định --', ENT_QUOTES, 'UTF-8') ?></option>
+                                                <option value="Y tế" <?= ($request['category'] ?? '') === 'Y tế' ? 'selected' : '' ?>>Y tế</option>
+                                                <option value="Ngoại ngữ" <?= ($request['category'] ?? '') === 'Ngoại ngữ' ? 'selected' : '' ?>>Ngoại ngữ</option>
+                                                <option value="Truyền thông" <?= ($request['category'] ?? '') === 'Truyền thông' ? 'selected' : '' ?>>Truyền thông</option>
+                                                <option value="Kỹ năng mềm" <?= ($request['category'] ?? '') === 'Kỹ năng mềm' ? 'selected' : '' ?>>Kỹ năng mềm</option>
+                                                <option value="Kỹ năng cứng" <?= ($request['category'] ?? '') === 'Kỹ năng cứng' ? 'selected' : '' ?>>Kỹ năng cứng</option>
+                                                <option value="Khác" <?= ($request['category'] ?? '') === 'Khác' ? 'selected' : '' ?>>Khác</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small fw-semibold">Trình độ</label>
+                                            <select class="form-select form-select-sm" name="level">
+                                                <option value="" <?= empty($request['level']) ? 'selected' : '' ?>><?= htmlspecialchars($request['level'] ?: '-- Giữ mặc định --', ENT_QUOTES, 'UTF-8') ?></option>
+                                                <option value="beginner" <?= ($request['level'] ?? '') === 'beginner' ? 'selected' : '' ?>>Cơ bản</option>
+                                                <option value="intermediate" <?= ($request['level'] ?? '') === 'intermediate' ? 'selected' : '' ?>>Trung bình</option>
+                                                <option value="advanced" <?= ($request['level'] ?? '') === 'advanced' ? 'selected' : '' ?>>Thành thạo</option>
+                                            </select>
+                                        </div>
                                         <button class="btn btn-sm btn-success w-100" type="submit">
                                             <i class="bi bi-check-lg me-1"></i>Duyệt và thêm kỹ năng
                                         </button>

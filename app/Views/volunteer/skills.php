@@ -74,6 +74,26 @@ $hasPendingSkillRequest = count(array_filter(
                                placeholder="VD: Sơ cứu viên">
                     </div>
                     <div class="mb-3">
+                        <label class="form-label fw-semibold" for="category">Danh mục kỹ năng</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="">-- Chọn danh mục --</option>
+                            <option value="Y tế">Y tế</option>
+                            <option value="Ngoại ngữ">Ngoại ngữ</option>
+                            <option value="Truyền thông">Truyền thông</option>
+                            <option value="Kỹ năng mềm">Kỹ năng mềm</option>
+                            <option value="Kỹ năng cứng">Kỹ năng cứng</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="level">Trình độ kỹ năng</label>
+                        <select class="form-select" id="level" name="level">
+                            <option value="beginner">Cơ bản</option>
+                            <option value="intermediate">Trung bình</option>
+                            <option value="advanced">Thành thạo</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label fw-semibold" for="proof">Bằng chứng / mô tả</label>
                         <textarea class="form-control" id="proof" name="proof" rows="4" maxlength="5000" required
                                   placeholder="Mô tả kinh nghiệm hoặc chứng chỉ liên quan"></textarea>

@@ -90,7 +90,8 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                         <div class="vh-activity-cover-fallback">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="vh-activity-status-chip">
-                                    <i class="bi bi-record-circle-fill me-1 text-success"></i> Đang mở
+                                    <i class="bi bi-record-circle-fill me-1 <?= ($act['status'] ?? 'open') === 'ongoing' ? 'text-primary' : 'text-success' ?>"></i>
+                                    <?= ($act['status'] ?? 'open') === 'ongoing' ? 'Đang diễn ra' : 'Đang mở' ?>
                                 </span>
                                 <?php if (!empty($act['category'])): ?>
                                     <span class="badge bg-white bg-opacity-25 text-white" style="font-size: 0.72rem; border: 1px solid rgba(255,255,255,0.3);">

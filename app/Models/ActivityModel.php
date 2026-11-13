@@ -39,7 +39,8 @@ class ActivityModel extends BaseModel
         string $sort = 'date'
     ): array
     {
-        $where = "a.status IN ('open','ongoing') AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())";
+        // Hoạt động chỉ được xem là "mở đăng ký" nếu chưa qua ngày kết thúc hoạt động.
+        $where = "a.status IN ('open','ongoing') AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW()) AND a.date_end >= NOW()";
         $params = [];
         if ($category !== '') {
             $where .= ' AND a.category = ?';
@@ -81,10 +82,47 @@ class ActivityModel extends BaseModel
              FROM activities
              WHERE status IN ('open','ongoing')
                AND (registration_deadline IS NULL OR registration_deadline >= NOW())
+               AND date_end >= NOW()
                AND category IS NOT NULL AND category != ''
              ORDER BY category ASC"
         );
         return $stmt->fetchAll(\PDO::FETCH_COLUMN);
+    }
+
+    /**
+     * Xác định trạng thái hiệu lực của hoạt động để hiển thị/thống kê.
+     * Các trạng thái do người quản lý thiết lập thủ công (draft/closed/cancelled/completed)
+     * giữ nguyên. Hoạt động 'open'/'ongoing' đã qua ngày kết thúc sẽ được coi là 'completed'.
+     * PHƯƠNG PHÁP NÀY KHÔNG GHI THẤY DỮ LIỆU VÀO CƠ SỞ DỮ LIỆU (chỉ dùng hiển thị).
+     */
+    public function resolveActivityStatus(array $activity, ?string $now = null): string
+    {
+        $now = $now ?? date('Y-m-d H:i:s');
+        $dbStatus = $activity['status'] ?? 'open';
+
+        if (in_array($dbStatus, ['draft', 'closed', 'cancelled', 'completed'], true)) {
+            return $dbStatus;
+        }
+
+        $dateEnd = $activity['date_end'] ?? null;
+        if ($dateEnd !== null && $dateEnd !== '' && $now > $dateEnd) {
+            return 'completed';
+        }
+
+        return $dbStatus;
+    }
+
+    /**
+     * Kiểm tra hoạt động đã kết thúc dựa trên ngày kết thúc (không đổi DB).
+     */
+    public function isActivityEnded(array $activity, ?string $now = null): bool
+    {
+        $now = $now ?? date('Y-m-d H:i:s');
+        $dateEnd = $activity['date_end'] ?? null;
+        if ($dateEnd === null || $dateEnd === '') {
+            return false;
+        }
+        return $now > $dateEnd;
     }
 
     public function getByCoordinator(int $coordinatorId, string $status = ''): array
@@ -109,11 +147,24 @@ class ActivityModel extends BaseModel
         int $page = 1,
         int $perPage = 15
     ): array {
+        $now = date('Y-m-d H:i:s');
         $where = ['coordinator_id = ?'];
         $params = [$coordinatorId];
         if ($status !== '') {
-            $where[] = 'status = ?';
-            $params[] = $status;
+            // Áp dụng trạng thái hiệu lực (effective status) để khớp với thống kê hiển thị:
+            // - 'completed' bao gồm cả hoạt động status='open'/'ongoing' nhưng đã qua date_end.
+            // - 'open'/'ongoing' không bao gồm hoạt động đã qua date_end (bị coi là completed).
+            if ($status === 'completed') {
+                $where[] = "(status = 'completed' OR (status IN ('open','ongoing') AND date_end IS NOT NULL AND date_end <> '' AND date_end < ?))";
+                $params[] = $now;
+            } elseif ($status === 'open' || $status === 'ongoing') {
+                $where[] = "status = ? AND (date_end IS NULL OR date_end = '' OR date_end >= ?)";
+                $params[] = $status;
+                $params[] = $now;
+            } else {
+                $where[] = 'status = ?';
+                $params[] = $status;
+            }
         }
         if ($keyword !== '') {
             $where[] = '(title LIKE ? OR location LIKE ? OR description LIKE ?)';
@@ -196,6 +247,16 @@ class ActivityModel extends BaseModel
         }
     }
 
+    /**
+     * Đếm số ca trực (không bao gồm ca đã hủy) của một hoạt động.
+     */
+    public function countShifts(int $activityId): int
+    {
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM shifts WHERE activity_id = ? AND status != 'cancelled'");
+        $stmt->execute([$activityId]);
+        return (int)$stmt->fetchColumn();
+    }
+
     public function getRequiredSkillsForActivity(int $activityId): array
     {
         $stmt = $this->db->prepare(
@@ -276,7 +337,8 @@ class ActivityModel extends BaseModel
         string $sort = 'date'
     ): array
     {
-        $where = "a.status IN ('open','ongoing') AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())";
+        // Hoạt động chỉ được xem là "mở đăng ký" nếu chưa qua ngày kết thúc hoạt động.
+        $where = "a.status IN ('open','ongoing') AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW()) AND a.date_end >= NOW()";
         $params = [];
         if ($category !== '') {
             $where .= ' AND a.category = ?';

@@ -37,6 +37,16 @@ class ActivityController extends Controller
             $this->getPageSize(15)
         );
         $allActivities = $this->activityModel->getByCoordinator($coordId);
+
+        $now = date('Y-m-d H:i:s');
+        $nowTimestamp = strtotime($now);
+
+        // Gán trạng thái hiệu lực cho hoạt động trong trang hiện tại (dùng hiển thị trên bảng).
+        foreach ($result['data'] as &$activity) {
+            $activity['effective_status'] = $this->activityModel->resolveActivityStatus($activity, $now);
+        }
+        unset($activity);
+
         $activityStats = [
             'total' => count($allActivities),
             'open' => 0,
@@ -49,33 +59,22 @@ class ActivityController extends Controller
             'shifts' => 0,
             'registrations' => 0,
         ];
-        $now = time();
-        foreach ($allActivities as $activity) {
-            if (isset($activityStats[$activity['status']])) {
-                $activityStats[$activity['status']]++;
+        // Tính thống kê Widget dựa trên trạng thái HIỆU LỰC (theo ngày thực tế) để khớp với danh sách hiển thị.
+        foreach ($allActivities as &$activity) {
+            $activity['effective_status'] = $this->activityModel->resolveActivityStatus($activity, $now);
+            $statusKey = $activity['effective_status'];
+            if (isset($activityStats[$statusKey])) {
+                $activityStats[$statusKey]++;
             }
-            $startTime = strtotime($activity['date_start']);
-            $endTime = strtotime($activity['date_end']);
-            if ($activity['status'] === 'ongoing' || (
-                in_array($activity['status'], ['open', 'closed'], true)
-                && $startTime <= $now
-                && $endTime >= $now
-            )) {
-                $activityStats['ongoing']++;
-            } elseif ($activity['status'] === 'completed' || (
-                !in_array($activity['status'], ['draft', 'cancelled'], true)
-                && $endTime < $now
-            )) {
-                $activityStats['completed']++;
-            } elseif (
-                !in_array($activity['status'], ['draft', 'cancelled', 'completed'], true)
-                && $startTime > $now
-            ) {
+            // 'open' nhưng thời gian bắt đầu vẫn trong tương lai => sắp diễn ra.
+            $dateStart = $activity['date_start'] ?? null;
+            if ($statusKey === 'open' && $dateStart !== null && strtotime($dateStart) > $nowTimestamp) {
                 $activityStats['upcoming']++;
             }
             $activityStats['shifts'] += (int)$activity['shift_count'];
             $activityStats['registrations'] += (int)$activity['reg_count'];
         }
+        unset($activity);
 
         $this->render('coordinator.activities.index', [
             'title'      => 'Quản Lý Hoạt Động | VolunteerHub',
@@ -404,6 +403,14 @@ class ActivityController extends Controller
             return;
         }
 
+        // Không cho phép mở hoạt động nếu chưa có ít nhất 1 ca trực.
+        if ($status === 'open' && $this->activityModel->countShifts($actId) === 0) {
+            $this->redirect("/coordinator/activities/{$actId}/edit", [
+                'error' => 'Không thể mở hoạt động này vì chưa có ca trực nào. Vui lòng thêm ít nhất 1 ca trực trước khi chuyển sang trạng thái "Đang mở".',
+            ]);
+            return;
+        }
+
         $this->activityModel->update($actId, [
             'title'                 => $title,
             'description'           => $description,
@@ -432,11 +439,18 @@ class ActivityController extends Controller
 
         $status = $this->post('status', '');
         $allowed = ['draft', 'open', 'closed', 'ongoing', 'completed', 'cancelled'];
-        if (in_array($status, $allowed, true)) {
-            $this->activityModel->updateStatus($actId, $status);
-            $this->redirect('/coordinator/activities', ['success' => "Đã chuyển trạng thái hoạt động sang: $status"]);
-        } else {
+        if (!in_array($status, $allowed, true)) {
             $this->redirect('/coordinator/activities', ['error' => 'Trạng thái không hợp lệ.']);
+            return;
         }
+        // Không cho phép mở hoạt động nếu chưa có ít nhất 1 ca trực.
+        if ($status === 'open' && $this->activityModel->countShifts($actId) === 0) {
+            $this->redirect('/coordinator/activities', [
+                'error' => 'Không thể mở hoạt động này vì chưa có ca trực nào. Vui lòng thêm ít nhất 1 ca trực trước khi chuyển sang trạng thái "Đang mở".',
+            ]);
+            return;
+        }
+        $this->activityModel->updateStatus($actId, $status);
+        $this->redirect('/coordinator/activities', ['success' => "Đã chuyển trạng thái hoạt động sang: $status"]);
     }
 }

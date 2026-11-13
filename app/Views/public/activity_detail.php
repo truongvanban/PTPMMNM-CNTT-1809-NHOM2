@@ -2,7 +2,8 @@
 use App\Core\Session;
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
 $activityRegistrationOpen = in_array($activity['status'], ['open', 'ongoing'], true)
-    && (empty($activity['registration_deadline']) || strtotime($activity['registration_deadline']) >= time());
+    && (empty($activity['registration_deadline']) || strtotime($activity['registration_deadline']) >= time())
+    && (empty($activity['date_end']) || strtotime($activity['date_end']) >= time());
 ?>
 <div class="container py-4">
     <!-- Breadcrumb -->

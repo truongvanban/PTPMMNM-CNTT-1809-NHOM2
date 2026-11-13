@@ -79,7 +79,12 @@ class SkillController extends Controller
             return;
         }
 
-        $result = $this->skillRequestModel->approve($requestId);
+        $overrideCategory = trim($this->post('category', ''));
+        $overrideLevel = $this->post('level', '');
+        if (!in_array($overrideLevel, ['beginner', 'intermediate', 'advanced'])) {
+            $overrideLevel = null;
+        }
+        $result = $this->skillRequestModel->approve($requestId, $overrideCategory ?: null, $overrideLevel ?: null);
         $this->redirect($this->requestListPath(), [
             $result['success'] ? 'success' : 'error' => $result['message'],
         ]);

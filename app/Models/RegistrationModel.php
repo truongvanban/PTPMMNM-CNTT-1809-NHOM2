@@ -45,6 +45,11 @@ class RegistrationModel extends BaseModel
                 $this->db->rollBack();
                 return ['success' => false, 'message' => 'Đã hết hạn đăng ký cho hoạt động này.'];
             }
+            // Hoạt động đã qua ngày kết thúc => khóa đăng ký ngay cả khi cột status vẫn là 'open'.
+            if (!empty($shift['date_end']) && time() > strtotime($shift['date_end'])) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Hoạt động này đã kết thúc, không thể đăng ký.'];
+            }
 
             $volunteerStmt = $this->db->prepare(
                 "SELECT u.full_name

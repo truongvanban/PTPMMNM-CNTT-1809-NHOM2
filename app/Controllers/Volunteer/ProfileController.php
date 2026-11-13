@@ -115,9 +115,13 @@ class ProfileController extends Controller
         $userId = (int)Session::userId();
         $postedName = $this->post('skill_name', '');
         $postedProof = $this->post('proof', '');
+        $postedCategory = $this->post('category', '');
+        $postedLevel = $this->post('level', 'beginner');
         $skillName = is_string($postedName) ? $postedName : '';
         $proof = is_string($postedProof) ? $postedProof : '';
-        $result = (new SkillRequestModel())->createRequest($userId, $skillName, $proof);
+        $category = is_string($postedCategory) ? $postedCategory : '';
+        $level = is_string($postedLevel) ? $postedLevel : 'beginner';
+        $result = (new SkillRequestModel())->createRequest($userId, $skillName, $proof, $category, $level);
 
         $this->redirect('/volunteer/skills', [
             $result['success'] ? 'success' : 'error' => $result['message'],

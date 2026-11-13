@@ -166,9 +166,11 @@ $statusFilters = [
                             <?php
                             $startDate = date('d/m/Y', strtotime($act['date_start']));
                             $endDate = date('d/m/Y', strtotime($act['date_end']));
-                            $statusLabel = ['open' => 'Đang mở', 'draft' => 'Bản nháp', 'closed' => 'Đã đóng', 'ongoing' => 'Đang diễn ra', 'completed' => 'Hoàn thành', 'cancelled' => 'Đã hủy'][$act['status']] ?? $act['status'];
-                            $statusClass = ['open' => 'open', 'draft' => 'draft', 'closed' => 'closed', 'ongoing' => 'ongoing', 'completed' => 'completed', 'cancelled' => 'cancelled'][$act['status']] ?? 'other';
-                            $rowIconClass = ['open' => 'is-green', 'draft' => 'is-purple', 'closed' => 'is-gray', 'ongoing' => 'is-green', 'completed' => 'is-blue', 'cancelled' => 'is-red'][$act['status']] ?? 'is-blue';
+                            // Ưu tiên trạng thái hiệu lực (theo ngày thực tế) để widget và danh sách luôn đồng bộ.
+                            $displayStatus = $act['effective_status'] ?? $act['status'];
+                            $statusLabel = ['open' => 'Đang mở', 'draft' => 'Bản nháp', 'closed' => 'Đã đóng', 'ongoing' => 'Đang diễn ra', 'completed' => 'Đã kết thúc', 'cancelled' => 'Đã hủy'][$displayStatus] ?? $displayStatus;
+                            $statusClass = ['open' => 'open', 'draft' => 'draft', 'closed' => 'closed', 'ongoing' => 'ongoing', 'completed' => 'completed', 'cancelled' => 'cancelled'][$displayStatus] ?? 'other';
+                            $rowIconClass = ['open' => 'is-green', 'draft' => 'is-purple', 'closed' => 'is-gray', 'ongoing' => 'is-green', 'completed' => 'is-blue', 'cancelled' => 'is-red'][$displayStatus] ?? 'is-blue';
                             ?>
                             <tr>
                                 <td data-label="Hoạt động">
@@ -190,6 +192,9 @@ $statusFilters = [
                                 <td data-label="Ca / Đăng ký" class="text-end">
                                     <div class="activity-v2-meta">
                                         <span class="activity-v2-meta-item"><i class="bi bi-list-check me-1"></i><?= (int)$act['shift_count'] ?> ca</span>
+                                        <?php if ((int)$act['shift_count'] === 0 && in_array($displayStatus, ['open', 'ongoing'], true)): ?>
+                                        <span class="activity-v2-meta-item text-danger fw-semibold" style="font-size:0.72rem;"><i class="bi bi-exclamation-triangle me-1"></i> Chưa có ca trực</span>
+                                        <?php endif; ?>
                                         <span class="activity-v2-meta-item"><i class="bi bi-person-plus me-1"></i><?= (int)($act['reg_count'] ?? 0) ?> đăng ký</span>
                                     </div>
                                 </td>
