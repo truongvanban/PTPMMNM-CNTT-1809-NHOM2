@@ -51,6 +51,13 @@ class RegistrationModel extends BaseModel
                 return ['success' => false, 'message' => 'Hoạt động này đã kết thúc, không thể đăng ký.'];
             }
 
+            // Ca trực đã qua thời gian bắt đầu => không cho đăng ký.
+            $shiftStartsAt = strtotime($shift['date'] . ' ' . $shift['time_start']);
+            if ($shiftStartsAt !== false && $shiftStartsAt < time()) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Ca trực đã bắt đầu, không thể đăng ký.'];
+            }
+
             $volunteerStmt = $this->db->prepare(
                 "SELECT u.full_name
                  FROM users u

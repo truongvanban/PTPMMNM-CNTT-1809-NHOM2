@@ -389,7 +389,7 @@ $shiftStmt->execute([$actTodayId, 'Thu Gom Rác Và Tái Chế', 'Thu gom, phân
 $s13 = (int)$pdo->lastInsertId();
 $shiftStmt->execute([$actTodayId, 'Truyền Thông Sống Xanh', 'Hướng dẫn người dân và truyền thông bảo vệ môi trường.', $today, '13:00:00', '17:00:00', 2, 8, 'open']);
 $s14 = (int)$pdo->lastInsertId();
-$srsStmt->execute([$s14, 5, 0]);
+$srsStmt->execute([$s14, 5, 1]); // Dẫn chương trình - bắt buộc
 
 // --- Hoạt động quá khứ: ca đã kết thúc, có người hoàn thành và vắng mặt.
 $shiftStmt->execute([$actPastId, 'Hướng Dẫn Đọc Sách', 'Hướng dẫn khách tham quan và sắp xếp sách.', $pastDate, '08:00:00', '12:00:00', 2, 8, 'closed']);

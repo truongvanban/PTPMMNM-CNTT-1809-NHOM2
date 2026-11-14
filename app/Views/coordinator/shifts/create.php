@@ -19,7 +19,8 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         <div class="row g-3 mb-3">
             <div class="col-md-4">
                 <label for="date" class="form-label fw-semibold">Ngày diễn ra <span class="text-danger">*</span></label>
-                <input type="date" class="form-control" id="date" name="date" required value="<?= date('Y-m-d', strtotime($activity['date_start'])) ?>">
+                <?php $defaultShiftDate = date('Y-m-d', max(strtotime($activity['date_start'] ?? ''), strtotime('today'))); ?>
+                <input type="date" class="form-control" id="date" name="date" min="<?= date('Y-m-d') ?>" required value="<?= $defaultShiftDate ?>">
             </div>
             <div class="col-md-4">
                 <label for="time_start" class="form-label fw-semibold">Giờ bắt đầu <span class="text-danger">*</span></label>
@@ -53,26 +54,32 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         <div class="mb-4">
             <label class="form-label fw-semibold">Kỹ năng yêu cầu cho ca trực</label>
             <div class="border rounded p-3 bg-light">
-                <div class="row g-2">
+                <div class="row g-2" id="skillList">
                     <?php foreach ($skills as $sk): ?>
+                        <?php
+                            $skId = (int)$sk['id'];
+                            // Trong form tạo mới chưa có dữ liệu kỹ năng nên tất cả đều chưa checked
+                            $isChecked = false;
+                            $isMandatory = false;
+                        ?>
                         <div class="col-md-6">
-                            <div class="d-flex align-items-center justify-content-between p-2 bg-white rounded border">
+                            <div class="skill-item d-flex align-items-center justify-content-between p-2 bg-white rounded border" data-skill="<?= $skId ?>">
                                 <div class="form-check m-0">
-                                    <input class="form-check-input" type="checkbox" name="skills[]" value="<?= $sk['id'] ?>" id="sk_<?= $sk['id'] ?>">
-                                    <label class="form-check-label fw-semibold small" for="sk_<?= $sk['id'] ?>">
+                                    <input class="form-check-input skill-checkbox" type="checkbox" name="skills[]" value="<?= $skId ?>" id="sk_<?= $skId ?>">
+                                    <label class="form-check-label fw-semibold small" for="sk_<?= $skId ?>">
                                         <?= htmlspecialchars($sk['name']) ?>
                                     </label>
                                 </div>
-                                <div class="form-check form-switch m-0" title="Bắt buộc">
-                                    <input class="form-check-input" type="checkbox" name="mandatory[<?= $sk['id'] ?>]" value="1" id="man_<?= $sk['id'] ?>" checked>
-                                    <label class="form-check-label small text-danger" for="man_<?= $sk['id'] ?>">Bắt buộc</label>
+                                <div class="form-check form-switch m-0 skill-mandatory d-none" title="Bắt buộc">
+                                    <input class="form-check-input skill-toggle" type="checkbox" name="mandatory[<?= $skId ?>]" value="1" id="man_<?= $skId ?>" <?= $isMandatory ? 'checked' : '' ?> disabled>
+                                    <label class="form-check-label small text-danger" for="man_<?= $skId ?>">Bắt buộc</label>
                                 </div>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
             </div>
-            <small class="text-muted">Thuật toán sẽ loại bỏ bất kỳ ai thiếu các kỹ năng được đánh dấu "Bắt buộc".</small>
+            <small class="text-muted">Chỉ đánh dấu "Bắt buộc" cho kỹ năng thực sự cần thiết. Nút gạt chỉ xuất hiện khi bạn đã tích chọn kỹ năng đó.</small>
         </div>
 
         <div class="mb-4">
@@ -87,4 +94,53 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
             <a href="<?= $baseUrl ?>/coordinator/activities/<?= $activity['id'] ?>/shifts" class="btn btn-outline-secondary px-3">Hủy</a>
         </div>
     </form>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.getElementById('date');
+        const timeStartInput = document.getElementById('time_start');
+
+        function updateMinTime() {
+            const today = new Date();
+            const selectedDate = new Date(dateInput.value);
+
+            // So sánh xem ngày chọn có phải hôm nay không
+            if (selectedDate.toDateString() === today.toDateString()) {
+                // Lấy giờ hiện tại + 15 phút (để có thời gian chuẩn bị)
+                today.setMinutes(today.getMinutes() + 15);
+                const hours = String(today.getHours()).padStart(2, '0');
+                const minutes = String(today.getMinutes()).padStart(2, '0');
+                timeStartInput.min = `${hours}:${minutes}`;
+            } else {
+                timeStartInput.removeAttribute('min');
+            }
+        }
+
+        dateInput.addEventListener('change', updateMinTime);
+        updateMinTime(); // Chạy lần đầu khi load trang
+
+        // Kỹ năng: chỉ hiện nút gạt "Bắt buộc" khi checkbox kỹ năng được tích
+        var skillList = document.getElementById('skillList');
+        if (skillList) {
+            function setToggleState(checkbox) {
+                var row = checkbox.closest('.skill-item');
+                var toggleWrap = row.querySelector('.skill-mandatory');
+                var toggleInput = row.querySelector('.skill-toggle');
+                if (checkbox.checked) {
+                    toggleWrap.classList.remove('d-none');
+                    toggleInput.disabled = false;
+                } else {
+                    toggleWrap.classList.add('d-none');
+                    toggleInput.checked = false;
+                    toggleInput.disabled = true;
+                }
+            }
+
+            skillList.querySelectorAll('.skill-checkbox').forEach(function (cb) {
+                setToggleState(cb); // khởi tạo trạng thái ban đầu
+                cb.addEventListener('change', function () { setToggleState(cb); });
+            });
+        }
+    });
+    </script>
 </div>

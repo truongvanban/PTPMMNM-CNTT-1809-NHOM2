@@ -76,9 +76,16 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                 <a href="<?= $baseUrl ?>/admin/activities/<?= (int)$act['id'] ?>/shifts" class="btn btn-outline-primary btn-sm" title="Xem danh sách ca trực">
                                     <i class="bi bi-grid-3x3 me-1"></i>Ca trực
                                 </a>
+                                <?php $actEnded = !empty($act['date_end']) && strtotime($act['date_end']) < time(); ?>
+                                <?php if (!$actEnded): ?>
                                 <a href="<?= $baseUrl ?>/coordinator/activities/<?= (int)$act['id'] ?>/edit" class="btn btn-outline-secondary btn-sm" title="Chỉnh sửa hoạt động">
                                     <i class="bi bi-pencil me-1"></i>Sửa
                                 </a>
+                                <?php else: ?>
+                                <span class="btn btn-outline-secondary btn-sm disabled" style="cursor: not-allowed; pointer-events: none; opacity: 0.6;" title="Hoạt động đã kết thúc, không thể chỉnh sửa.">
+                                    <i class="bi bi-pencil me-1 text-muted"></i>Sửa
+                                </span>
+                                <?php endif; ?>
                                 <a href="<?= $baseUrl ?>/activities/<?= (int)$act['id'] ?>" target="_blank" rel="noopener noreferrer" class="btn btn-outline-info btn-sm" title="Xem trang công khai">
                                     <i class="bi bi-eye me-1"></i>Xem
                                 </a>

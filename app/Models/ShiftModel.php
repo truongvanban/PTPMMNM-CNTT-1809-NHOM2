@@ -104,6 +104,15 @@ class ShiftModel extends BaseModel
         return $stmt->execute($data);
     }
 
+    public function countRegistrations(int $shiftId): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM registrations WHERE shift_id = ? AND status IN ('pending','approved')"
+        );
+        $stmt->execute([$shiftId]);
+        return (int)$stmt->fetchColumn();
+    }
+
     public function close(int $id): bool
     {
         $stmt = $this->db->prepare(
@@ -168,6 +177,7 @@ class ShiftModel extends BaseModel
              WHERE s.status = 'open'
                AND a.status IN ('open','ongoing')
                AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())
+               AND TIMESTAMP(s.date, s.time_start) >= NOW()
                $filters"
         );
         $countStmt->execute($filterParams);
@@ -193,6 +203,7 @@ class ShiftModel extends BaseModel
              WHERE s.status = 'open'
                AND a.status IN ('open','ongoing')
                AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())
+               AND TIMESTAMP(s.date, s.time_start) >= NOW()
                $filters
              GROUP BY s.id
              ORDER BY s.date ASC, s.time_start ASC $limitSql"
@@ -218,6 +229,7 @@ class ShiftModel extends BaseModel
              WHERE s.status = 'open'
                AND a.status IN ('open','ongoing')
                AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())
+               AND TIMESTAMP(s.date, s.time_start) >= NOW()
              ORDER BY a.title ASC"
         );
         return $stmt->fetchAll();
@@ -234,6 +246,7 @@ class ShiftModel extends BaseModel
              WHERE s.status = 'open'
                AND a.status IN ('open','ongoing')
                AND (a.registration_deadline IS NULL OR a.registration_deadline >= NOW())
+               AND TIMESTAMP(s.date, s.time_start) >= NOW()
              ORDER BY sk.category ASC, sk.name ASC"
         );
         return $stmt->fetchAll();

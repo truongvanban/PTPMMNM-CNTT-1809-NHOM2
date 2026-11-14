@@ -8419,3 +8419,375 @@ html {
         justify-content: center;
     }
 }
+
+/* ===== Edit page upgrade ===== */
+.activity-v2-edit {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 1.5rem 2rem;
+}
+
+.activity-v2-edit-header {
+    border-radius: 1.25rem;
+    background: linear-gradient(135deg, #e9f7ef 0%, #f0f7ff 55%, #ffffff 100%);
+    border: 1px solid #d6efe3;
+    box-shadow: 0 8px 30px rgba(25, 135, 84, 0.06);
+    overflow: hidden;
+}
+
+.activity-v2-edit-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1.4rem 1.6rem;
+}
+
+.activity-v2-edit-back {
+    display: inline-flex;
+    align-items: center;
+    color: var(--vh-primary-dark);
+    font-weight: 700;
+    text-decoration: none;
+    padding: 0.55rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid #e0e7e2;
+    background: #fff;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.activity-v2-edit-back:hover {
+    background: #f1f8f3;
+    border-color: var(--vh-primary);
+    color: var(--vh-primary);
+}
+
+.activity-v2-edit-header-main {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1 1 220px;
+    min-width: 220px;
+}
+
+.activity-v2-edit-header-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #198754, #20c997);
+    color: #fff;
+    font-size: 1.4rem;
+    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.25);
+}
+
+.activity-v2-edit-header-content {
+    flex: 1;
+}
+
+.activity-v2-edit-header-content .activity-v2-edit-title {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #1d3a2e;
+    margin: 0 0 0.15rem;
+}
+
+.activity-v2-edit-subtitle {
+    color: #5d6961;
+    font-size: 0.88rem;
+    margin: 0;
+}
+
+.activity-v2-edit-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1rem;
+    border-radius: 99px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    border: 1px solid transparent;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    white-space: nowrap;
+}
+
+/* Summary strip */
+.activity-v2-edit-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.activity-v2-edit-summary-item {
+    background: #fff;
+    border: 1px solid #e6ece8;
+    border-left: 4px solid var(--vh-primary);
+    border-radius: 0.75rem;
+    padding: 0.9rem 1rem;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.activity-v2-edit-summary-item:hover {
+    transform: translateX(3px);
+    box-shadow: 0 4px 14px rgba(26, 55, 39, 0.06);
+}
+
+.activity-v2-edit-summary-item--wide {
+    grid-column: 1 / -1;
+    border-left-color: var(--vh-accent);
+}
+
+.activity-v2-edit-summary-label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #8a9a90;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.3rem;
+}
+
+.activity-v2-edit-summary-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1d3a2e;
+    line-height: 1.4;
+}
+
+.activity-v2-edit-summary-value strong {
+    display: block;
+}
+
+/* Form */
+.activity-v2-edit-form {
+    padding: 0 1.5rem 1rem;
+}
+
+.activity-v2-edit-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.1rem;
+    align-items: start;
+}
+
+.activity-v2-edit-cols {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.activity-v2-edit-panel {
+    padding: 1.2rem;
+    border: 1px solid #e6ece8;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(26, 55, 39, 0.03);
+    transition: box-shadow 0.15s ease;
+}
+
+.activity-v2-edit-panel:hover {
+    box-shadow: 0 4px 16px rgba(26, 55, 39, 0.06);
+}
+
+.activity-v2-edit-panel--blue {
+    border-top: 4px solid #198754;
+}
+
+.activity-v2-edit-panel--green {
+    border-top: 4px solid #20c997;
+}
+
+.activity-v2-edit-panel--purple {
+    border-top: 4px solid #6a52a3;
+}
+
+.activity-v2-edit-panel h2.activity-v2-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #1d3a2e;
+    margin: 0 0 1rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid #edf1ee;
+}
+
+.activity-v2-edit-panel h2.activity-v2-panel-title i {
+    font-size: 1.1rem;
+}
+
+.activity-v2-edit-panel--blue h2.activity-v2-panel-title i { color: #198754; }
+.activity-v2-edit-panel--green h2.activity-v2-panel-title i { color: #20c997; }
+.activity-v2-edit-panel--purple h2.activity-v2-panel-title i { color: #6a52a3; }
+
+.activity-v2-edit-panel .form-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #4a5a50;
+    margin-bottom: 0.45rem;
+}
+
+.activity-v2-edit-panel .form-control,
+.activity-v2-edit-panel .form-select {
+    min-height: 44px;
+    border-radius: 0.75rem;
+    border-color: #e0e7e2;
+    background: #fbfcfb;
+    font-size: 0.9rem;
+}
+
+.activity-v2-edit-panel .form-control:focus,
+.activity-v2-edit-panel .form-select:focus {
+    background: #fff;
+    border-color: #8bc7a3;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.12);
+}
+
+.activity-v2-edit-panel .form-control::placeholder,
+.activity-v2-edit-panel .form-select::placeholder {
+    color: #adb8b0;
+}
+
+.activity-v2-edit-description {
+    grid-column: 1 / -1;
+    padding: 1.2rem;
+    border: 1px solid #e6ece8;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(26, 55, 39, 0.03);
+}
+
+.activity-v2-edit-description h2.activity-v2-panel-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #1d3a2e;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.activity-v2-edit-description textarea.form-control {
+    min-height: 180px;
+    resize: vertical;
+    border-radius: 0.75rem;
+    border-color: #e0e7e2;
+    background: #fbfcfb;
+    font-size: 0.9rem;
+}
+
+.activity-v2-edit-description textarea.form-control:focus {
+    border-color: #8bc7a3;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.12);
+}
+
+/* Actions */
+.activity-v2-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid #edf1ee;
+    margin-top: 0.5rem;
+}
+
+.activity-v2-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 800;
+    border-radius: 0.75rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.activity-v2-btn--save {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.7rem 1.6rem;
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, #198754, #20c997);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.25);
+}
+
+.activity-v2-btn--save:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(25, 135, 84, 0.35);
+    background: linear-gradient(135deg, #146c43, #0f5132);
+}
+
+.activity-v2-btn--save:active {
+    transform: translateY(0);
+}
+
+.activity-v2-btn--cancel {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.7rem 1.2rem;
+    border-radius: 0.75rem;
+    border: 1px solid #e0e7e2;
+    background: #fff;
+    color: #4a5a50;
+}
+
+.activity-v2-btn--cancel:hover {
+    background: #f1f5f2;
+    border-color: #c9d3cc;
+    color: #1d3a2e;
+}
+
+.activity-v2-btn--cancel:active {
+    transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 991.98px) {
+    .activity-v2-edit-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .activity-v2-edit-summary-item--wide {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .activity-v2-edit-header-inner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.9rem;
+    }
+
+    .activity-v2-edit-header-main {
+        width: 100%;
+    }
+
+    .activity-v2-edit-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .activity-v2-edit-summary-item--wide {
+        grid-column: 1 / -1;
+    }
+
+    .activity-v2-edit-actions {
+        flex-direction: column;
+    }
+
+    .activity-v2-btn--save,
+    .activity-v2-btn--cancel {
+        width: 100%;
+        justify-content: center;
+    }
+}

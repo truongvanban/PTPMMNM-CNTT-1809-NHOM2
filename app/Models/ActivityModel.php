@@ -385,7 +385,16 @@ class ActivityModel extends BaseModel
         int $perPage = 10
     ): array
     {
-        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM shifts WHERE activity_id = ? AND status != 'cancelled'");
+        $countStmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM shifts s
+             JOIN activities act ON s.activity_id = act.id
+             WHERE s.activity_id = ?
+               AND s.status != 'cancelled'
+               AND act.status IN ('open','ongoing')
+               AND (act.registration_deadline IS NULL OR act.registration_deadline >= NOW())
+               AND act.date_end >= NOW()
+               AND TIMESTAMP(s.date, s.time_start) >= NOW()"
+        );
         $countStmt->execute([$activityId]);
         $total = (int)$countStmt->fetchColumn();
         $lastPage = $perPage > 0 ? max(1, (int)ceil($total / $perPage)) : 1;
@@ -416,7 +425,12 @@ class ActivityModel extends BaseModel
              FROM shifts s
              JOIN activities act ON s.activity_id = act.id
              LEFT JOIN registrations reg ON reg.shift_id = s.id AND reg.user_id = ?
-             WHERE s.activity_id = ? AND s.status != 'cancelled'
+             WHERE s.activity_id = ?
+               AND s.status != 'cancelled'
+               AND act.status IN ('open','ongoing')
+               AND (act.registration_deadline IS NULL OR act.registration_deadline >= NOW())
+               AND act.date_end >= NOW()
+               AND TIMESTAMP(s.date, s.time_start) >= NOW()
              ORDER BY s.date ASC, s.time_start ASC $limitSql"
         );
         $stmt->execute([$userId, $userId, $userId, $activityId]);

@@ -344,7 +344,29 @@ class PointsModel extends BaseModel
             );
             $stmt->execute([$assignmentId, (int)$isAdmin, $coordinatorId]);
             $assignment = $stmt->fetch();
-            if (!$assignment || !in_array($assignment['assignment_status'], ['assigned', 'confirmed'], true)) {
+            if (!$assignment) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Phân công không tồn tại hoặc không thuộc quyền của bạn.'];
+            }
+
+            // Kiểm tra xem assignment này có dính líu đến đơn báo vắng đã duyệt không
+            $stmtCheck = $this->db->prepare("
+                SELECT COUNT(*) FROM replacement_requests 
+                WHERE assignment_id = ? AND status = 'approved'
+            ");
+            $stmtCheck->execute([$assignmentId]);
+            if ($stmtCheck->fetchColumn() > 0) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Không thể hoàn thành ca. Tình nguyện viên này đã báo vắng và được duyệt.'];
+            }
+
+            // Kiểm tra trạng thái assignment
+            if (in_array($assignment['assignment_status'], ['replaced', 'absent', 'removed'], true)) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'Phân công này không còn hiệu lực để cộng điểm.'];
+            }
+
+            if (!in_array($assignment['assignment_status'], ['assigned', 'confirmed'], true)) {
                 $this->db->rollBack();
                 return ['success' => false, 'message' => 'Không tìm thấy phân công hợp lệ thuộc hoạt động của bạn.'];
             }

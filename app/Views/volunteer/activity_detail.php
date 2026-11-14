@@ -134,7 +134,9 @@ $activityRegistrationOpen = in_array($activity['status'], ['open', 'ongoing'], t
                 $maxVolunteers = (int)$s['max_volunteers'];
                 $occupiedCount = max($registeredCount, $assignedCount);
                 $isFull = $occupiedCount >= $maxVolunteers;
-                $registrationOpen = $activityRegistrationOpen && $s['status'] === 'open';
+                $shiftStartsAt   = strtotime($s['date'] . ' ' . $s['time_start']);
+                $shiftStarted    = $shiftStartsAt !== false && $shiftStartsAt < time();
+                $registrationOpen = $activityRegistrationOpen && $s['status'] === 'open' && !$shiftStarted;
                 $percent = $maxVolunteers > 0 ? min(100, round(($occupiedCount / $maxVolunteers) * 100)) : 0;
             ?>
             <div class="col-lg-6">

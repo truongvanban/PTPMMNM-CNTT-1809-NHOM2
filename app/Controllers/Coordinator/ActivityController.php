@@ -362,6 +362,12 @@ class ActivityController extends Controller
             $this->redirect('/403');
             return;
         }
+        // Hoạt động đã qua ngày kết thúc → chỉnh sửa.
+        $now = date('Y-m-d H:i:s');
+        if ($this->activityModel->isActivityEnded($activity, $now)) {
+            $this->redirect('/coordinator/activities', ['error' => 'Hoạt động đã kết thúc, không thể chỉnh sửa']);
+            return;
+        }
 
         $this->render('coordinator.activities.edit', [
             'title'     => 'Chỉnh Sửa Hoạt Động | VolunteerHub',
@@ -381,6 +387,12 @@ class ActivityController extends Controller
 
         if (!$activity || ((int)$activity['coordinator_id'] !== $coordId && !Session::hasRole('admin'))) {
             $this->redirect('/403');
+            return;
+        }
+        // Hoạt động đã qua ngày kết thúc → cập nhật.
+        $now = date('Y-m-d H:i:s');
+        if ($this->activityModel->isActivityEnded($activity, $now)) {
+            $this->redirect("/coordinator/activities/{$actId}/edit", ['error' => 'Hoạt động đã kết thúc, không thể cập nhật']);
             return;
         }
 
@@ -434,6 +446,12 @@ class ActivityController extends Controller
 
         if (!$activity || ((int)$activity['coordinator_id'] !== $coordId && !Session::hasRole('admin'))) {
             $this->redirect('/403');
+            return;
+        }
+        // Hoạt động đã qua ngày kết thúc → thay đổi trạng thái.
+        $now = date('Y-m-d H:i:s');
+        if ($this->activityModel->isActivityEnded($activity, $now)) {
+            $this->redirect('/coordinator/activities', ['error' => 'Hoạt động đã kết thúc, không thể thay đổi trạng thái']);
             return;
         }
 

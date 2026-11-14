@@ -207,9 +207,14 @@ $statusFilters = [
                                             <button type="button" class="btn btn-sm btn-light activity-v2-menu" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Thao tác với <?= htmlspecialchars($act['title'], ENT_QUOTES, 'UTF-8') ?>">
                                                 <i class="bi bi-three-dots"></i>
                                             </button>
+                                            <?php $actEnded = !empty($act['date_end']) && strtotime($act['date_end']) < time(); ?>
                                             <ul class="dropdown-menu dropdown-menu-end">
                                                 <li><a class="dropdown-item activity-v2-action" href="<?= $baseUrl ?>/coordinator/activities/<?= (int)$act['id'] ?>/shifts"><i class="bi bi-list-check me-2 text-success"></i>Quản lý ca trực</a></li>
+                                                <?php if (!$actEnded): ?>
                                                 <li><a class="dropdown-item activity-v2-action" href="<?= $baseUrl ?>/coordinator/activities/<?= (int)$act['id'] ?>/edit"><i class="bi bi-pencil-square me-2 text-primary"></i>Chỉnh sửa</a></li>
+                                                <?php else: ?>
+                                                <li><span class="dropdown-item text-muted" style="cursor: not-allowed; pointer-events: none;"><i class="bi bi-pencil-square me-2 text-muted opacity-50"></i>Chỉnh sửa (đã kết thúc)</span></li>
+                                                <?php endif; ?>
                                             </ul>
                                         </div>
                                     </div>

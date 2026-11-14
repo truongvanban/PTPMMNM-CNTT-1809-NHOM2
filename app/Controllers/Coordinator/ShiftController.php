@@ -104,7 +104,18 @@ class ShiftController extends Controller
             return;
         }
 
-        if ($timeEnd <= $timeStart) {
+        // Kiểm tra thời gian bắt đầu không được nằm trong quá khứ
+        $startDateTime = strtotime($date . ' ' . $timeStart);
+        $endDateTime   = strtotime($date . ' ' . $timeEnd);
+        $currentTime   = time();
+
+        if ($startDateTime < $currentTime) {
+            $this->redirect("/coordinator/shifts/create?activity_id={$actId}", ['error' => 'Không thể tạo ca trực có thời gian bắt đầu trong quá khứ.']);
+            return;
+        }
+
+        // Kiểm tra giờ kết thúc phải sau giờ bắt đầu
+        if ($endDateTime <= $startDateTime) {
             $this->redirect("/coordinator/shifts/create?activity_id={$actId}", ['error' => 'Giờ kết thúc phải lớn hơn giờ bắt đầu.']);
             return;
         }
@@ -194,8 +205,33 @@ class ShiftController extends Controller
             return;
         }
 
-        if ($timeEnd <= $timeStart) {
+        // Kiểm tra thời gian bắt đầu mới không được nằm trong quá khứ
+        $newStartDateTime = strtotime($date . ' ' . $timeStart);
+        $newEndDateTime   = strtotime($date . ' ' . $timeEnd);
+        $currentTime      = time();
+
+        if ($newStartDateTime < $currentTime) {
+            $this->redirect("/coordinator/shifts/{$shiftId}/edit", ['error' => 'Không thể chỉnh sửa ca trực có thời gian bắt đầu trong quá khứ.']);
+            return;
+        }
+
+        // Kiểm tra giờ kết thúc phải sau giờ bắt đầu
+        if ($newEndDateTime <= $newStartDateTime) {
             $this->redirect("/coordinator/shifts/{$shiftId}/edit", ['error' => 'Giờ kết thúc phải lớn hơn giờ bắt đầu.']);
+            return;
+        }
+
+        // Chặn sửa ca trực đã bắt đầu (hoặc đã qua ngày)
+        $shiftStartDateTime = $shift['date'] . ' ' . $shift['time_start'];
+        if (strtotime($shiftStartDateTime) <= time()) {
+            $this->redirect("/coordinator/shifts/{$shiftId}/edit", ['error' => 'Ca trực đã bắt đầu (hoặc đã qua ngày), không thể chỉnh sửa thông tin.']);
+            return;
+        }
+
+        // Số lượng tối đa không được giảm xuống thấp hơn số người đã đăng ký
+        $registeredCount = (int)$this->shiftModel->countRegistrations($shiftId);
+        if ($maxVol < $registeredCount) {
+            $this->redirect("/coordinator/shifts/{$shiftId}/edit", ['error' => "Không thể giảm số lượng tối đa xuống thấp hơn số người đã đăng ký ({$registeredCount})."]);
             return;
         }
 
@@ -211,7 +247,8 @@ class ShiftController extends Controller
             'status'         => in_array($status, ['open','closed','full','cancelled'], true) ? $status : 'open',
         ]);
 
-        // Cập nhật kỹ năng
+        // Cập nhật kỹ năng: CHỈ lưu kỹ năng có ô Checkbox được tích (có trong $_POST['skills']).
+        // Tuyệt đối không lưu kỹ năng chỉ có nút gạt "Bắt buộc" mà không có checkbox.
         $selectedSkills = $this->post('skills', []);
         $mandatorySkills = $this->post('mandatory', []);
         $skillsData = [];

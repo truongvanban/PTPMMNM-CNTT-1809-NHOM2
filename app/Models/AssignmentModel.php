@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use DateTimeImmutable;
 use PDO;
 use Exception;
 
@@ -251,6 +252,16 @@ class AssignmentModel extends BaseModel
         $shift = $shiftModel->findWithDetails($shiftId);
         if (!$shift) {
             return ['success' => false, 'message' => 'Ca trực không tồn tại.'];
+        }
+
+        // Kiểm tra ca trực đã kết thúc hay chưa (chặn thao tác time-traveling)
+        $shiftStart = new DateTimeImmutable($shift['date'] . ' ' . $shift['time_start']);
+        $shiftEnd = new DateTimeImmutable($shift['date'] . ' ' . $shift['time_end']);
+        if ($shiftEnd <= $shiftStart) {
+            $shiftEnd = $shiftEnd->modify('+1 day');
+        }
+        if ($shiftEnd->getTimestamp() <= time()) {
+            return ['success' => false, 'message' => 'Không thể phân công cho ca trực đã kết thúc.'];
         }
 
         $ownsTransaction = !$this->db->inTransaction();

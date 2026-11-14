@@ -121,8 +121,8 @@ $bulkEligibleAssignments = array_values(array_filter(
                                             <span class="badge bg-primary">Đã hoàn thành</span>
                                         <?php elseif ($asgn['attendance_status'] === 'confirmed'): ?>
                                             <span class="badge bg-success-soft text-success">Đã xác nhận</span>
-                                        <?php elseif ($asgn['attendance_status'] === 'absent' || $asgn['status'] === 'absent'): ?>
-                                            <span class="badge bg-danger-soft text-danger">Báo vắng</span>
+                                        <?php elseif ($asgn['attendance_status'] === 'absent' || $asgn['status'] === 'absent' || $asgn['status'] === 'replaced' || (!empty($asgn['replacement_request_id']) && $asgn['replacement_status'] === 'approved')): ?>
+                                            <span class="badge bg-danger-soft text-danger">Đã báo vắng</span>
                                         <?php else: ?>
                                             <span class="badge bg-warning-soft text-warning">Chờ xác nhận</span>
                                         <?php endif; ?>
@@ -181,7 +181,11 @@ $bulkEligibleAssignments = array_values(array_filter(
                 Chọn từ <?= (int)($candidatePagination['total'] ?? count($availableVolunteers)) ?> tình nguyện viên đã đăng ký, đủ kỹ năng bắt buộc và không trùng lịch. Đơn đã hủy có thể được khôi phục khi phân công lại. Tình nguyện viên cần xác nhận sau khi được phân công.
             </p>
 
-            <?php if ($assignedCount >= $maxVol): ?>
+            <?php if ($shiftHasEnded): ?>
+                <div class="alert alert-warning py-2 small mb-0">
+                    <i class="bi bi-clock-history me-1"></i> Ca trực đã kết thúc vào <?= substr($shift['time_end'], 0, 5) ?> ngày <?= date('d/m/Y', strtotime($shift['date'])) ?>. Không thể thêm hoặc thay đổi phân công cho ca này.
+                </div>
+            <?php elseif ($assignedCount >= $maxVol): ?>
                 <div class="alert alert-danger py-2 small mb-0">
                     <i class="bi bi-slash-circle me-1"></i> Ca đã đạt số lượng tối đa (<?= $maxVol ?> người). Không thể thêm người nữa.
                 </div>
