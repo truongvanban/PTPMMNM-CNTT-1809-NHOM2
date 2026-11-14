@@ -178,7 +178,7 @@ $weekdays = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', '
                                         </a>
                                     <?php endif; ?>
                                     <?php if ($isAssignmentActive): ?>
-                                        <a href="<?= $baseUrl ?>/volunteer/replacement" class="d-inline-block small mt-1">Gửi lại báo vắng</a>
+                                        <a href="<?= $baseUrl ?>/volunteer/replacement?assignment_id=<?= (int)$asgn['id'] ?>" class="d-inline-block small mt-1">Gửi lại báo vắng</a>
                                     <?php endif; ?>
                                 <?php elseif ($replacementStatus !== 'pending' && $attendanceStatus !== 'confirmed' && empty($asgn['replacement_request_id']) && $canRespondToAssignment): ?>
                                     <div class="d-flex flex-wrap gap-1 mt-2">
@@ -189,10 +189,10 @@ $weekdays = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', '
                                                 <i class="bi bi-check-lg me-1"></i>Xác nhận
                                             </button>
                                         </form>
-                                        <a href="<?= $baseUrl ?>/volunteer/replacement" class="btn btn-outline-danger btn-sm py-1 px-2">Báo vắng</a>
+                                        <a href="<?= $baseUrl ?>/volunteer/replacement?assignment_id=<?= (int)$asgn['id'] ?>" class="btn btn-outline-danger btn-sm py-1 px-2">Báo vắng</a>
                                     </div>
                                 <?php elseif ($canRespondToAssignment && $attendanceStatus === 'confirmed' && $replacementStatus !== 'pending' && $replacementStatus !== 'approved'): ?>
-                                    <a href="<?= $baseUrl ?>/volunteer/replacement" class="d-inline-block small mt-2">Báo bận đột xuất</a>
+                                    <a href="<?= $baseUrl ?>/volunteer/replacement?assignment_id=<?= (int)$asgn['id'] ?>" class="d-inline-block small mt-2">Báo bận đột xuất</a>
                                 <?php endif; ?>
                                 <?php if (!empty($asgn['coordinator_name'])): ?>
                                     <div class="small text-muted mt-2"><?= htmlspecialchars($asgn['coordinator_name'], ENT_QUOTES, 'UTF-8') ?></div>

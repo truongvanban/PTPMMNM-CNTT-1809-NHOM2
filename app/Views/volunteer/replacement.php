@@ -3,6 +3,11 @@
  * Báo vắng & Xin thay người - VolunteerHub Modern UI
  */
 $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/');
+// Ca trực được chọn sẵn từ nút "Báo vắng" ở trang Lịch (?assignment_id=...).
+// Ưu tiên biến Controller truyền sang; fallback đọc $_GET để view dùng độc lập vẫn hoạt động.
+$selectedId = isset($selectedAssignmentId)
+    ? (int)$selectedAssignmentId
+    : (isset($_GET['assignment_id']) ? (int)$_GET['assignment_id'] : 0);
 ?>
 <div class="row g-4">
     <!-- Form Gửi Yêu Cầu Báo Vắng -->
@@ -31,7 +36,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                 && !in_array($asgn['attendance_status'], ['absent', 'replaced'], true)
                                 && ($asgn['replacement_status'] ?? '') !== 'pending'
                             ): ?>
-                                <option value="<?= $asgn['id'] ?>">
+                                <option value="<?= (int)$asgn['id'] ?>"<?= ((int)$asgn['id'] === $selectedId) ? ' selected' : '' ?>>
                                     <?= htmlspecialchars($asgn['shift_name']) ?> (<?= date('d/m/Y', strtotime($asgn['shift_date'])) ?>) - <?= htmlspecialchars($asgn['activity_title']) ?> <?= isset($asgn['replacement_status']) && $asgn['replacement_status'] ? '- [' . htmlspecialchars($asgn['replacement_status']) . ']' : '' ?>
                                 </option>
                             <?php endif; ?>
@@ -130,7 +135,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
             <?php
             $pagination = array_merge($pagination ?? [], [
                 'url' => $baseUrl . '/volunteer/replacement',
-                'params' => [],
+                'params' => $selectedId > 0 ? ['assignment_id' => $selectedId] : [],
                 'visible_count' => count($requests),
                 'item_label' => 'yêu cầu',
             ]);

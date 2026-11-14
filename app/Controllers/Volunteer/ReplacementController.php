@@ -32,11 +32,25 @@ class ReplacementController extends Controller
         $result = $this->replacementModel->getByUserPage($userId, $page, $this->getPageSize(15));
         $myAssignments = $this->asgnModel->getByUser($userId);
 
+        // Ca trực được chọn sẵn khi vào từ nút "Báo vắng" ở trang Lịch (?assignment_id=...)
+        // Chỉ chấp nhận ID thuộc về chính TNV đang đăng nhập để tránh chọn nhầm ca của người khác.
+        $requestedAssignmentId = (int)$this->get('assignment_id', 0);
+        $selectedAssignmentId = 0;
+        if ($requestedAssignmentId > 0) {
+            foreach ($myAssignments as $myAssignment) {
+                if ((int)($myAssignment['id'] ?? 0) === $requestedAssignmentId) {
+                    $selectedAssignmentId = $requestedAssignmentId;
+                    break;
+                }
+            }
+        }
+
         $this->render('volunteer.replacement', [
             'title'         => 'Báo Vắng & Thay Người | VolunteerHub',
             'requests'      => $result['data'],
             'pagination'    => $result,
             'myAssignments' => $myAssignments,
+            'selectedAssignmentId' => $selectedAssignmentId,
             'csrfToken'     => Session::generateCsrf(),
             'success'       => Session::getFlash('success'),
             'error'         => Session::getFlash('error'),
