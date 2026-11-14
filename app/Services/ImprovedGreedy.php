@@ -22,7 +22,7 @@ class ImprovedGreedy
      * @param array $registrations Danh sách đăng ký ca (shift_id => [user_id, ...])
      * @return array Kết quả phân công và chỉ số đo lường
      */
-    public function execute(array $shifts, array $volunteers, array $registrations): array
+    public function execute(array $shifts, array $volunteers, array $registrations, array $autoApproveCandidates = []): array
     {
         $startTime = microtime(true);
 
@@ -118,6 +118,12 @@ class ImprovedGreedy
             $minVolunteers = (int)$shift['min_volunteers'];
             $neededSkills = $shift['needed_skills'] ?? $shift['required_skills'] ?? $shift['mandatory_skills'] ?? [];
             $registeredUserIds = $registrations[$sid] ?? [];
+            foreach ($autoApproveCandidates[$sid] ?? [] as $pendingUid) {
+                $pendingUid = (int)$pendingUid;
+                if (!in_array($pendingUid, $registeredUserIds, true)) {
+                    $registeredUserIds[] = $pendingUid;
+                }
+            }
 
             // Lọc ứng viên hợp lệ: chỉ loại trừ những người bị trùng lịch
             // (Không loại trừ người thiếu kỹ năng!)
@@ -163,6 +169,7 @@ class ImprovedGreedy
 
             // Bước 5: Phân công tối đa đến $maxVolunteers
             $shiftDuration = $this->getShiftDurationMinutes($shift);
+            $newlyAssignedUserIds = [];
             foreach ($validCandidates as $candidateId) {
                 if (count($assignments[$sid]) >= $maxVolunteers) {
                     break;
@@ -170,6 +177,10 @@ class ImprovedGreedy
                 $assignments[$sid][] = $candidateId;
                 $userAssignments[$candidateId][] = $sid;
                 $userWorkloadMinutes[$candidateId] += $shiftDuration;
+                // Đăng ký đang chờ duyệt được tự động duyệt khi được phân công
+                if (isset($autoApproveCandidates[$sid]) && in_array($candidateId, $autoApproveCandidates[$sid], true)) {
+                    $newlyAssignedUserIds[] = $candidateId;
+                }
             }
 
             // Bước 6: Ghi nhận trạng thái và nguyên nhân nếu thiếu
@@ -214,6 +225,7 @@ class ImprovedGreedy
                 'needed_skills'           => $neededSkills,
                 'skilled_assigned_count'  => $skilledAssignedCount,
                 'assigned_users'          => $assignments[$sid],
+                'newly_assigned_user_ids'   => $newlyAssignedUserIds,
             ];
         }
 
