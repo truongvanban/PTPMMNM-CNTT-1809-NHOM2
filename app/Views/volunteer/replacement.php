@@ -32,7 +32,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                 && ($asgn['replacement_status'] ?? '') !== 'pending'
                             ): ?>
                                 <option value="<?= $asgn['id'] ?>">
-                                    <?= htmlspecialchars($asgn['shift_name']) ?> (<?= date('d/m/Y', strtotime($asgn['shift_date'])) ?>) - <?= htmlspecialchars($asgn['activity_title']) ?>
+                                    <?= htmlspecialchars($asgn['shift_name']) ?> (<?= date('d/m/Y', strtotime($asgn['shift_date'])) ?>) - <?= htmlspecialchars($asgn['activity_title']) ?> <?= isset($asgn['replacement_status']) && $asgn['replacement_status'] ? '- [' . htmlspecialchars($asgn['replacement_status']) . ']' : '' ?>
                                 </option>
                             <?php endif; ?>
                         <?php endforeach; ?>

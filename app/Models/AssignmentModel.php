@@ -136,6 +136,7 @@ class AssignmentModel extends BaseModel
                          AND rr_latest.requester_id = a.user_id
                    )
              WHERE a.user_id = ? AND $statusFilter
+               AND CONCAT(s.date, ' ', s.time_end) > NOW()
              ORDER BY s.date ASC, s.time_start ASC"
         );
         $stmt->execute([$userId]);
