@@ -1,12 +1,9 @@
 # VOLUNTEERHUB — HỆ THỐNG TỔ CHỨC HOẠT ĐỘNG & PHÂN CÔNG TÌNH NGUYỆN VIÊN (ĐỀ TÀI 6)
 
-> Tên repository trước đó: `REPO-GIT-FIT4016_Backend_18-01_La_Van_Hai`
-
 [![PHP Version](https://img.shields.io/badge/PHP-8.x-777bb4.svg)](https://php.net)
 [![Database](https://img.shields.io/badge/MariaDB-10.4-003545.svg)](https://mariadb.org)
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-7952b3.svg)](https://getbootstrap.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-11%20Passed%20(100%25)-success.svg)](tests/run_tests.php)
 
 ---
 
@@ -59,15 +56,20 @@ VolunteerHub/
 │   ├── app.php                # Cấu hình nạp .env, múi giờ, hằng số
 │   └── database.php           # Cấu hình kết nối PDO MariaDB
 ├── database/
-│   ├── schema.sql             # Schema quan hệ, gồm ledger điểm và cấu hình thi đua
-│   └── seeders/seed.php       # Seeder tạo 30 TNV, 12 ca trực, 3 bộ dữ liệu mẫu
+│   ├── schema.sql             # Schema mới nhất
+│   ├── migrations/            # Các thay đổi schema cho hệ thống đã cài đặt
+│   └── seeders/               # Dữ liệu phát triển và tài khoản demo
 ├── public/
-│   ├── assets/                # CSS, JS tùy biến, biểu đồ
-│   ├── .htaccess              # URL Rewriting cho Apache
-│   └── index.php              # Front Controller duy nhất
+│   ├── assets/
+│   │   ├── css/style.css      # Giao diện tùy biến
+│   │   └── js/                # JavaScript phía trình duyệt
+│   ├── .htaccess              # URL rewriting của Apache
+│   └── index.php              # Front Controller
+├── routes/web.php             # Các route công khai và theo vai trò
+├── scripts/                   # Tác vụ định kỳ chạy bằng PHP CLI
 ├── tests/
-│   ├── ConstraintValidator.php# Bộ kiểm tra 4 ràng buộc cứng độc lập
-│   └── run_tests.php          # CLI Test Runner cho TC01 -> TC05
+│   ├── ConstraintValidator.php
+│   └── run_tests.php          # CLI Test Runner cho TC01 -> TC09
 ├── .env.example               # Mẫu cấu hình; không chứa thông tin xác thực
 ├── composer.json
 ├── CONTRIBUTING.md
@@ -82,8 +84,9 @@ VolunteerHub/
 ### Bước 1: Đặt mã nguồn vào XAMPP
 Sao chép thư mục dự án vào thư mục `htdocs` của XAMPP:
 ```
-E:\xampp\htdocs\VolunteerHub
+C:\xampp\htdocs\VolunteerHub
 ```
+Nếu XAMPP hoặc dự án nằm ở vị trí khác, thay `C:\xampp` và đường dẫn dự án trong các lệnh bên dưới cho phù hợp.
 
 ### Bước 2: Khởi động Apache và MySQL trên XAMPP
 Mở **XAMPP Control Panel** và nhấn **Start** tại 2 dịch vụ:
@@ -112,24 +115,26 @@ DB_CHARSET=utf8mb4
 Mở Terminal / PowerShell và chạy 2 lệnh sau:
 ```powershell
 # 1. Nhập schema cấu trúc:
-& "E:\xampp\mysql\bin\mysql.exe" -u root -e "source E:/xampp/htdocs/VolunteerHub/database/schema.sql"
+& "C:\xampp\mysql\bin\mysql.exe" -u root -e "source C:/xampp/htdocs/VolunteerHub/database/schema.sql"
 
 # 2. Chạy Seeder nạp 30 TNV và 3 bộ dữ liệu thử nghiệm:
-& "E:\xampp\php\php.exe" "E:\xampp\htdocs\VolunteerHub\database\seeders\seed.php" --reset
+& "C:\xampp\php\php.exe" "C:\xampp\htdocs\VolunteerHub\database\seeders\seed.php" --reset
 ```
 
-Seeder chính xóa dữ liệu nghiệp vụ hiện có trong cơ sở dữ liệu đã cấu hình, sau đó tạo lại tài khoản demo, 6 hoạt động và 16 ca trực. Cờ `--reset` là bắt buộc để tránh chạy xóa dữ liệu ngoài ý muốn. Bộ mẫu gồm hoạt động đã hoàn thành, hoạt động diễn ra hôm nay, hoạt động tương lai, ca trùng lịch/thiếu kỹ năng, nhiều trạng thái đăng ký và phân công, báo vắng, điểm danh, thông báo và giao dịch điểm ở nhiều hạng.
+Seeder chính xóa dữ liệu trong cơ sở dữ liệu đã cấu hình, sau đó tạo tài khoản demo, 30 tình nguyện viên, 6 hoạt động và 16 ca trực. Cờ `--reset` là bắt buộc để xác nhận thao tác xóa dữ liệu. Bộ mẫu gồm hoạt động đã hoàn thành, hoạt động diễn ra hôm nay, hoạt động tương lai, ca trùng lịch/thiếu kỹ năng, nhiều trạng thái đăng ký và phân công, báo vắng, điểm danh, thông báo và giao dịch điểm.
 
 Để bổ sung thêm 4 hoạt động và 8 ca trực mẫu mà không xóa dữ liệu hiện có, chạy sau seeder chính:
 ```powershell
-php database\seeders\seed_extra.php
+& "C:\xampp\php\php.exe" "C:\xampp\htdocs\VolunteerHub\database\seeders\seed_extra.php"
 ```
-Seeder bổ sung chỉ chạy trong môi trường `development`, tự bỏ qua hoạt động đã có và tạo đăng ký mẫu theo kỹ năng của tình nguyện viên hiện có. Sau khi chạy cả hai seeder, hệ thống có 10 hoạt động và 24 ca trực mẫu.
+Seeder bổ sung chỉ chạy trong môi trường `development`, tự bỏ qua hoạt động đã có và tạo đăng ký mẫu theo kỹ năng của tình nguyện viên hiện có. Sau khi chạy cả hai seeder, bộ dữ liệu có 10 hoạt động và 24 ca trực mẫu.
 
-Nếu đang nâng cấp cơ sở dữ liệu VolunteerHub đã tồn tại, hãy sao lưu trước rồi chạy migration **một lần**:
+Nếu đang nâng cấp cơ sở dữ liệu VolunteerHub cũ, hãy sao lưu trước rồi chạy các migration còn thiếu theo thứ tự dưới đây, mỗi migration chỉ chạy **một lần**. Không chạy các migration này sau khi đã nhập `schema.sql` mới:
 ```powershell
-& "E:\xampp\mysql\bin\mysql.exe" -u root volunteerhub -e "source E:/xampp/htdocs/VolunteerHub/database/migrations/20261110_volunteer_gamification.sql"
-& "E:\xampp\mysql\bin\mysql.exe" -u root volunteerhub -e "source E:/xampp/htdocs/VolunteerHub/database/migrations/20261112_skill_requests.sql"
+& "C:\xampp\mysql\bin\mysql.exe" -u root volunteerhub -e "source C:/xampp/htdocs/VolunteerHub/database/migrations/20261103_activity_creation_features.sql"
+& "C:\xampp\mysql\bin\mysql.exe" -u root volunteerhub -e "source C:/xampp/htdocs/VolunteerHub/database/migrations/20261110_volunteer_gamification.sql"
+& "C:\xampp\mysql\bin\mysql.exe" -u root volunteerhub -e "source C:/xampp/htdocs/VolunteerHub/database/migrations/20261112_skill_requests.sql"
+& "C:\xampp\mysql\bin\mysql.exe" -u root volunteerhub -e "source C:/xampp/htdocs/VolunteerHub/database/migrations/20261113_skill_request_category_level.sql"
 ```
 
 ### Bước 5: Truy cập Website
@@ -237,21 +242,13 @@ Hệ thống sử dụng các ràng buộc cứng để đảm bảo tính hợp
 
 ## 9. Chạy Kiểm Thử Tự Động (Test Suite)
 
-Dự án tích hợp sẵn bộ kiểm thử độc lập cho 8 trường hợp nghiệp vụ cùng 3 bộ dữ liệu cơ sở dữ liệu:
+Dự án tích hợp 9 kiểm thử nghiệp vụ (`TC01` đến `TC09`) và 3 kịch bản dữ liệu đọc từ cơ sở dữ liệu. Hãy nhập schema và chạy seeder trước để các kiểm thử dữ liệu có bộ mẫu phù hợp. Lệnh kiểm thử hiển thị kết quả từng trường hợp:
 ```powershell
-php tests/run_tests.php
+& "C:\xampp\php\php.exe" "C:\xampp\htdocs\VolunteerHub\tests\run_tests.php"
 ```
 
-**Kết quả kiểm thử:**
-- `TC01`: Ràng buộc kỹ năng bắt buộc (100% Passed)
-- `TC02`: Điều kiện xét đơn đăng ký theo kỹ năng, trùng lịch và chỉ tiêu (100% Passed)
-- `TC03`: Ràng buộc chống trùng ca / Overlap (100% Passed)
-- `TC04`: Giới hạn ca / Capacity limit (100% Passed)
-- `TC05`: So sánh hai thuật toán trên cùng dữ liệu (100% Passed)
-- `TC06`: Điều kiện chọn người thay thế theo kỹ năng và xung đột ca (100% Passed)
-- `TC07`: Cân bằng tải theo tổng thời lượng ca (100% Passed)
-- `TC08`: Quy đổi điểm, cấp bậc và giới hạn điểm dương mỗi ngày (100% Passed)
-- `Database Sets`: Bộ A (Đủ người), Bộ B (Thiếu người), Bộ C (Trùng lịch) đều Passed.
+- `TC01`–`TC09`: kỹ năng, điều kiện đăng ký, xung đột lịch (kể cả ca qua đêm), giới hạn số người, so sánh thuật toán, thay thế, cân bằng tải và quy tắc điểm.
+- Bộ A, B, C: kiểm thử phân công trên dữ liệu đủ người, thiếu người/kỹ năng và xung đột lịch.
 
 ## 10. Tự động gỡ phân công chưa xác nhận
 
@@ -288,7 +285,7 @@ Thay đường dẫn theo cài đặt XAMPP và thư mục dự án.
 
 ---
 
-## 12. Checklist Đối Chiếu Rubric Đồ Án
+## 13. Checklist Đối Chiếu Rubric Đồ Án
 
 - [x] **Môi trường**: PHP 8.x, MariaDB, XAMPP, Bootstrap 5, Git/GitHub.
 - [x] **Nhóm 1**: CRUD tài khoản, kỹ năng, hồ sơ, hoạt động và ca trực.
