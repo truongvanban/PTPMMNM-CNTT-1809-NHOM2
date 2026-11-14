@@ -114,6 +114,16 @@ class ShiftModel extends BaseModel
         return $stmt->rowCount() > 0;
     }
 
+    public function reopen(int $id): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE shifts SET status = 'open', updated_at = NOW()
+             WHERE id = ? AND status = 'closed'"
+        );
+        $stmt->execute([$id]);
+        return $stmt->rowCount() > 0;
+    }
+
     public function setRequiredSkills(int $shiftId, array $skills): void
     {
         $this->db->prepare("DELETE FROM shift_required_skills WHERE shift_id = ?")->execute([$shiftId]);

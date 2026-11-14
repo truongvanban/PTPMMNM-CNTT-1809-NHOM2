@@ -64,6 +64,7 @@ return [
     ['GET',  '/coordinator/shifts/{id}/edit',          'Coordinator\ShiftController@editForm',        'coordinator'],
     ['POST', '/coordinator/shifts/{id}/edit',          'Coordinator\ShiftController@update',          'coordinator'],
     ['POST', '/coordinator/shifts/{id}/close',         'Coordinator\ShiftController@close',           'coordinator'],
+    ['POST', '/coordinator/shifts/{id}/reopen',        'Coordinator\\ShiftController@reopen',          'coordinator'],
     ['GET',  '/coordinator/registrations',             'Coordinator\RegistrationController@index',    'coordinator'],
     ['GET',  '/coordinator/skill-requests',            'Admin\SkillController@coordinatorRequests',   'coordinator'],
     ['POST', '/coordinator/skill-requests/{id}/approve','Admin\SkillController@approveRequest',        'coordinator'],

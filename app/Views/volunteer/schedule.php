@@ -69,6 +69,19 @@ $weekdays = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', '
                 <span class="volunteer-calendar-caption"><?= $monthAssignmentCount ?> ca trực · <?= $monthDayCount ?> ngày</span>
             </div>
             <nav class="volunteer-calendar-navigation" aria-label="Điều hướng lịch">
+                <div class="d-flex align-items-center gap-2 volunteer-calendar-month-picker-wrap">
+                    <label for="scheduleMonthSelect" class="mb-0 small text-muted fw-semibold">Chọn tháng:</label>
+                    <select id="scheduleMonthSelect" name="month"
+                            class="form-select form-select-sm volunteer-calendar-month-select"
+                            onchange="const m=this.value; location.href='<?= $baseUrl ?>/volunteer/schedule?month=<?= (int)$monthStart->format('Y') ?>-'+m">
+                        <?php $currentYear = (int)$monthStart->format('Y'); ?>
+                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                            <option value="<?= sprintf('%02d', $m) ?>" <?= $m === (int)$monthStart->format('n') ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($monthLabels[$m]) ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
                 <a class="btn btn-outline-secondary btn-sm"
                    href="<?= $baseUrl ?>/volunteer/schedule?month=<?= urlencode($previousMonth) ?>"
                    aria-label="Tháng trước"><i class="bi bi-chevron-left"></i><span class="ms-1 d-none d-sm-inline">Tháng trước</span></a>

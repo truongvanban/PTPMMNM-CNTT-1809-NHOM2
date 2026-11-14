@@ -252,4 +252,30 @@ class ShiftController extends Controller
             ['success' => 'Đã đóng ca trực. Tình nguyện viên không thể đăng ký ca này nữa.']
         );
     }
+
+    public function reopen(string $id): void
+    {
+        $this->verifyCsrf();
+        $shiftId = (int)$id;
+        $coordId = (int)Session::userId();
+        $shift = $this->shiftModel->findWithDetails($shiftId);
+
+        if (!$shift || ((int)$shift['coordinator_id'] !== $coordId && !Session::hasRole('admin'))) {
+            $this->redirect('/403');
+            return;
+        }
+
+        if (!$this->shiftModel->reopen($shiftId)) {
+            $this->redirect(
+                "/coordinator/activities/{$shift['activity_id']}/shifts",
+                ['error' => 'Ca trực không ở trạng thái đóng hoặc không thể mở lại.']
+            );
+            return;
+        }
+
+        $this->redirect(
+            "/coordinator/activities/{$shift['activity_id']}/shifts",
+            ['success' => 'Đã mở lại ca trực. Tình nguyện viên có thể đăng ký ca này trở lại.']
+        );
+    }
 }

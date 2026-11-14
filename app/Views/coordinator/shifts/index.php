@@ -129,6 +129,13 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                                                 <i class="bi bi-lock"></i> Đóng ca
                                             </button>
                                         </form>
+                                    <?php elseif ($s['status'] === 'closed'): ?>
+                                        <form action="<?= $baseUrl ?>/coordinator/shifts/<?= $s['id'] ?>/reopen" method="POST" class="shift-action-form" onsubmit="return confirm('Bạn có chắc muốn mở lại ca trực này? Tình nguyện viên có thể đăng ký ca này trở lại.');">
+                                            <input type="hidden" name="_csrf_token" value="<?= $csrfToken ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Mở lại ca trực">
+                                                <i class="bi bi-unlock"></i> Mở lại ca
+                                            </button>
+                                        </form>
                                     <?php endif; ?>
                                 </div>
                             </td>
