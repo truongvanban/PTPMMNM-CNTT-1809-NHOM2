@@ -68,69 +68,36 @@ $disabled = $isStarted ? 'disabled' : '';
             <input type="text" class="form-control" id="location" name="location" value="<?= htmlspecialchars($shift['location'] ?? '') ?>" required <?= $disabled ?>>
         </div>
 
-        <!-- Yêu cầu Kỹ năng -->
+        <!-- Kỹ năng cần thiết -->
         <div class="mb-4">
-            <label class="form-label fw-semibold">Kỹ năng yêu cầu cho ca trực</label>
+            <label class="form-label fw-semibold"><i class="bi bi-stars text-warning me-1"></i>Kỹ năng cần thiết cho ca trực</label>
             <div class="border rounded p-3 bg-light">
                 <div class="row g-2" id="skillList">
                     <?php foreach ($skills as $sk): ?>
                         <?php
                             $skId = (int)$sk['id'];
                             $isChecked = isset($currentSkillMap[$skId]);
-                            // Chỉ hiển thị & cho phép bấm "Bắt buộc" khi kỹ năng được tích vào ô checkbox
-                            $isMandatory = $isChecked ? ($currentSkillMap[$skId] === 1) : false;
                         ?>
                         <div class="col-md-6">
-                            <div class="skill-item d-flex align-items-center justify-content-between p-2 bg-white rounded border" data-skill="<?= $skId ?>">
+                            <div class="skill-item d-flex align-items-center p-2 bg-white rounded border" data-skill="<?= $skId ?>">
                                 <div class="form-check m-0">
-                                    <input class="form-check-input skill-checkbox" type="checkbox" name="skills[]" value="<?= $skId ?>" id="sk_<?= $skId ?>" <?= $isChecked ? 'checked' : '' ?>>
+                                    <input class="form-check-input skill-checkbox" type="checkbox" name="skills[]" value="<?= $skId ?>" id="sk_<?= $skId ?>" <?= $isChecked ? 'checked' : '' ?> <?= $disabled ?>>
                                     <label class="form-check-label fw-semibold small" for="sk_<?= $skId ?>">
                                         <?= htmlspecialchars($sk['name']) ?>
                                     </label>
-                                </div>
-                                <div class="form-check form-switch m-0 skill-mandatory <?= $isChecked ? '' : 'd-none' ?>">
-                                    <input class="form-check-input skill-toggle" type="checkbox" name="mandatory[<?= $skId ?>]" value="1" id="man_<?= $skId ?>" <?= $isMandatory ? 'checked' : '' ?> <?= !$isChecked ? 'disabled' : '' ?>>
-                                    <label class="form-check-label small text-danger" for="man_<?= $skId ?>">Bắt buộc</label>
                                 </div>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
             </div>
-            <small class="text-muted">Chỉ đánh dấu "Bắt buộc" cho kỹ năng thực sự cần thiết. Nút gạt chỉ xuất hiện khi bạn đã tích chọn kỹ năng đó.</small>
+            <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Chọn các kỹ năng cần thiết cho ca trực này. Khi chạy thuật toán phân công tự động, hệ thống sẽ ưu tiên các tình nguyện viên có những kỹ năng này vào ca.</small>
         </div>
 
         <div class="mb-4">
             <label for="description" class="form-label fw-semibold">Mô tả công việc của ca</label>
             <textarea class="form-control" id="description" name="description" rows="3" <?= $disabled ?>><?= htmlspecialchars($shift['description'] ?? '') ?></textarea>
         </div>
-
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var skillList = document.getElementById('skillList');
-    if (!skillList) return;
-
-    function setToggleState(checkbox) {
-        var row = checkbox.closest('.skill-item');
-        var toggleWrap = row.querySelector('.skill-mandatory');
-        var toggleInput = row.querySelector('.skill-toggle');
-        if (checkbox.checked) {
-            toggleWrap.classList.remove('d-none');
-            toggleInput.disabled = false;
-        } else {
-            toggleWrap.classList.add('d-none');
-            toggleInput.checked = false;
-            toggleInput.disabled = true;
-        }
-    }
-
-    skillList.querySelectorAll('.skill-checkbox').forEach(function (cb) {
-        setToggleState(cb); // khởi tạo trạng thái ban đầu
-        cb.addEventListener('change', function () { setToggleState(cb); });
-    });
-});
-</script>
 
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary px-4" <?= $disabled ?>>

@@ -10,7 +10,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
             </ol>
         </nav>
         <h1 class="h3 fw-bold mb-0">Xem Trước Kết Quả Phân Công</h1>
-        <small class="text-muted">Hoạt động: <strong><?= htmlspecialchars($run['activity_title']) ?></strong> | Thuật toán: <code><?= htmlspecialchars($run['algorithm']) ?></code></small>
+        <small class="text-muted">Hoạt động: <strong><?= htmlspecialchars($run['activity_title']) ?></strong> | Thuật toán: <span class="badge bg-success-soft text-success"><i class="bi bi-magic me-1"></i>Thuật toán phân công tối ưu</span></small>
     </div>
 
     <div>

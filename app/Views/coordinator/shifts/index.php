@@ -39,7 +39,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                         <th>Tên ca & Mô tả</th>
                         <th>Ngày & Giờ</th>
                         <th>Đăng ký / Phân công</th>
-                        <th>Kỹ năng yêu cầu</th>
+                        <th>Kỹ năng cần thiết</th>
                         <th>Trạng thái</th>
                         <th class="text-center">Thao tác</th>
                     </tr>

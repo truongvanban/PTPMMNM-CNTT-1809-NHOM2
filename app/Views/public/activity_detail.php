@@ -64,7 +64,7 @@ $activityRegistrationOpen = in_array($activity['status'], ['open', 'ongoing'], t
 
         <?php if (!empty($requiredSkills)): ?>
             <div class="border-top pt-3 mt-3">
-                <h2 class="h6 fw-bold text-uppercase text-secondary mb-2">Kỹ năng yêu cầu</h2>
+                <h2 class="h6 fw-bold text-uppercase text-secondary mb-2">Kỹ năng cần thiết (ưu tiên)</h2>
                 <div class="activity-detail-chips">
                     <?php foreach ($requiredSkills as $skill): ?>
                         <span><?= htmlspecialchars($skill['name']) ?></span>
@@ -109,7 +109,7 @@ $activityRegistrationOpen = in_array($activity['status'], ['open', 'ongoing'], t
                             <th>Tên ca</th>
                             <th>Ngày & Giờ</th>
                             <th>Số lượng cần</th>
-                            <th>Kỹ năng yêu cầu</th>
+                            <th>Kỹ năng cần thiết</th>
                             <th class="text-center">Thao tác</th>
                         </tr>
                     </thead>

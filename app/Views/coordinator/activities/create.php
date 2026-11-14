@@ -96,7 +96,7 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                         </div>
                     </div>
                     <div class="activity-create-field mt-3">
-                        <label for="activity-skills">Kỹ năng yêu cầu <span class="text-muted fw-normal">(tùy chọn)</span></label>
+                        <label for="activity-skills">Kỹ năng cần thiết <span class="text-muted fw-normal">(ưu tiên khi phân công)</span></label>
                         <?php if (!empty($skills)): ?>
                             <details class="activity-create-skill-picker">
                                 <summary id="activity-skills"><i class="bi bi-tags-fill"></i><span data-skill-placeholder>Chọn kỹ năng...</span><i class="bi bi-chevron-down ms-auto"></i></summary>

@@ -1,7 +1,7 @@
 <?php
 /**
  * app/Controllers/Admin/ReportController.php
- * Báo cáo tổng quan và Màn hình So sánh Thuật toán (Benchmark Kỹ thuật 2)
+ * Báo cáo tổng quan và Báo cáo Hiệu quả Thuật toán Phân công
  */
 
 declare(strict_types=1);
@@ -35,16 +35,16 @@ class ReportController extends Controller
         // Mặc định chọn hoạt động đầu tiên hoặc theo query string
         $selectedActId = (int)$this->get('activity_id', $activities[0]['id'] ?? 1);
 
-        $comparison = null;
+        $report = null;
         if ($selectedActId > 0) {
-            $comparison = $this->assignmentService->compareAlgorithms($selectedActId);
+            $report = $this->assignmentService->getAlgorithmReport($selectedActId);
         }
 
         $this->render('admin.reports.algorithm', [
-            'title'         => 'So Sánh Thực Nghiệm Hai Thuật Toán | VolunteerHub',
+            'title'         => 'Hiệu Quả Thuật Toán Phân Công | VolunteerHub',
             'activities'    => $activities,
             'selectedActId' => $selectedActId,
-            'comparison'    => $comparison,
+            'report'        => $report,
         ]);
     }
 }

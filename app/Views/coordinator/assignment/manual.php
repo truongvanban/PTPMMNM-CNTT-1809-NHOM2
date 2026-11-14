@@ -53,14 +53,14 @@ $bulkEligibleAssignments = array_values(array_filter(
     </div>
     <div class="col-md-4">
         <div class="card p-3 stat-card">
-            <div class="small text-muted fw-semibold">Kỹ năng bắt buộc của ca</div>
+            <div class="small text-muted fw-semibold">Kỹ năng cần thiết của ca</div>
             <div class="mt-1">
                 <?php if (empty($requiredSkills)): ?>
-                    <span class="text-muted small">Không yêu cầu bắt buộc</span>
+                    <span class="text-muted small">Không yêu cầu kỹ năng đặc biệt</span>
                 <?php else: ?>
                     <?php foreach ($requiredSkills as $rs): ?>
-                        <span class="badge <?= $rs['is_mandatory'] ? 'bg-danger-soft text-danger' : 'bg-light text-dark border' ?> me-1">
-                            <?= htmlspecialchars($rs['name']) ?> <?= $rs['is_mandatory'] ? '(Bắt buộc)' : '' ?>
+                        <span class="badge bg-warning-soft text-dark me-1">
+                            <i class="bi bi-star-fill text-warning me-1"></i><?= htmlspecialchars($rs['name']) ?>
                         </span>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -178,7 +178,7 @@ $bulkEligibleAssignments = array_values(array_filter(
         <div class="card border-0 shadow-sm rounded-4 p-4">
             <h2 class="h5 fw-bold mb-1"><i class="bi bi-person-plus-fill text-success me-2"></i>Thêm Người Vào Ca</h2>
             <p class="text-muted small mb-3">
-                Chọn từ <?= (int)($candidatePagination['total'] ?? count($availableVolunteers)) ?> tình nguyện viên đã đăng ký, đủ kỹ năng bắt buộc và không trùng lịch. Đơn đã hủy có thể được khôi phục khi phân công lại. Tình nguyện viên cần xác nhận sau khi được phân công.
+                Chọn từ <?= (int)($candidatePagination['total'] ?? count($availableVolunteers)) ?> tình nguyện viên đã đăng ký hợp lệ và không trùng lịch (ưu tiên người có kỹ năng cần thiết). Đơn đã hủy có thể được khôi phục khi phân công lại. Tình nguyện viên cần xác nhận sau khi được phân công.
             </p>
 
             <?php if ($shiftHasEnded): ?>

@@ -75,7 +75,7 @@ $pendingSkillRequestCount = (new SkillRequestModel())->countPending();
             <div class="text-muted small text-uppercase fw-bold px-3 mt-4 mb-2">Báo cáo & Thuật toán</div>
             <nav class="nav flex-column">
                 <a class="nav-link <?= str_contains($currentUri, '/admin/reports/algorithm') ? 'active' : '' ?>" href="<?= $baseUrl ?>/admin/reports/algorithm">
-                    <i class="bi bi-graph-up-arrow"></i> So sánh thuật toán (Benchmark)
+                    <i class="bi bi-cpu"></i> Báo cáo thuật toán phân công
                 </a>
                 <a class="nav-link <?= str_contains($currentUri, '/admin/logs') ? 'active' : '' ?>" href="<?= $baseUrl ?>/admin/logs">
                     <i class="bi bi-journal-text"></i> Nhật ký hệ thống (Audit Logs)

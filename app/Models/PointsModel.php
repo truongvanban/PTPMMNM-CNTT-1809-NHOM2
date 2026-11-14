@@ -333,7 +333,7 @@ class PointsModel extends BaseModel
                         act.title AS activity_title,
                         act.coordinator_id, act.points_multiplier,
                         (SELECT COUNT(*) FROM shift_required_skills req
-                         WHERE req.shift_id = s.id AND req.is_mandatory = 1) AS mandatory_skill_count,
+                         WHERE req.shift_id = s.id) AS mandatory_skill_count,
                         att.status AS attendance_status
                  FROM assignments a
                  JOIN shifts s ON s.id = a.shift_id

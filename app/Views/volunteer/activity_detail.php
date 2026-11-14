@@ -83,7 +83,7 @@ $activityRegistrationOpen = in_array($activity['status'], ['open', 'ongoing'], t
 
         <?php if (!empty($requiredSkills)): ?>
             <div class="border-top pt-3 mt-3">
-                <h2 class="h6 fw-bold text-uppercase text-secondary mb-2">Kỹ năng yêu cầu</h2>
+                <h2 class="h6 fw-bold text-uppercase text-secondary mb-2">Kỹ năng cần thiết (ưu tiên)</h2>
                 <div class="activity-detail-chips">
                     <?php foreach ($requiredSkills as $skill): ?>
                         <span><?= htmlspecialchars($skill['name']) ?></span>
@@ -174,7 +174,7 @@ $activityRegistrationOpen = in_array($activity['status'], ['open', 'ongoing'], t
                             <i class="bi bi-geo-alt text-danger me-1"></i> <?= htmlspecialchars($s['location'] ?? ($activity['location'] ?? 'Tại địa điểm hoạt động')) ?>
                         </div>
                         <div class="text-muted">
-                            <i class="bi bi-stars text-warning me-1"></i> Yêu cầu kỹ năng:
+                            <i class="bi bi-stars text-warning me-1"></i> Kỹ năng cần thiết (ưu tiên):
                             <?php if (!empty($s['required_skills'])): ?>
                                 <span class="badge bg-warning-soft text-dark"><?= htmlspecialchars($s['required_skills']) ?></span>
                             <?php else: ?>

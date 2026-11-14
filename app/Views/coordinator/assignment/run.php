@@ -7,13 +7,13 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
         <div class="card border-0 shadow-sm rounded-4 p-4">
             <h1 class="h4 fw-bold mb-1"><i class="bi bi-cpu text-primary me-2"></i>Chạy Thuật Toán Phân Công</h1>
             <p class="text-muted small mb-4">
-                Hệ thống đề xuất phân công đơn đã duyệt, đồng thời kiểm tra <strong>kỹ năng bắt buộc</strong>, <strong>trùng giờ</strong> và <strong>giới hạn ca</strong>. Tình nguyện viên vẫn cần xác nhận sau khi được phân công.
+                Hệ thống đề xuất phân công đơn đã duyệt, tự động <strong>ưu tiên tình nguyện viên có kỹ năng cần thiết</strong>, đồng thời kiểm tra <strong>trùng giờ</strong> và <strong>cân bằng khối lượng công việc</strong>. Tình nguyện viên vẫn cần xác nhận sau khi được phân công.
             </p>
 
             <div class="alert alert-info d-flex align-items-start gap-2 small" role="note">
                 <i class="bi bi-info-circle-fill mt-1"></i>
                 <div>
-                    Khi duyệt đơn đăng ký một ca cụ thể, hệ thống tự phân công nếu ca còn chỗ và tình nguyện viên đáp ứng điều kiện. Dùng thuật toán để đề xuất phân công hàng loạt hoặc sắp xếp các trường hợp còn thiếu; tình nguyện viên vẫn phải xác nhận sau khi được phân công.
+                    Khi duyệt đơn đăng ký một ca cụ thể, hệ thống tự phân công nếu ca còn chỗ và tình nguyện viên đáp ứng điều kiện. Dùng thuật toán để đề xuất phân công hàng loạt một cách tối ưu; tình nguyện viên vẫn phải xác nhận sau khi được phân công.
                     <a href="<?= $baseUrl ?>/coordinator/registrations?status=pending" class="alert-link d-block mt-1">Xem các đơn đang chờ duyệt</a>
                 </div>
             </div>
@@ -34,31 +34,15 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label fw-semibold">Lựa chọn thuật toán <span class="text-danger">*</span></label>
-                    
-                    <div class="card p-3 mb-2 border-primary border-opacity-50 bg-primary-soft">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="algorithm" id="algo_improved" value="improved_greedy" checked>
-                            <label class="form-check-label fw-bold text-dark" for="algo_improved">
-                                Thuật toán cải tiến (Improved Greedy - MCF & Workload Balancing)
-                                <span class="badge bg-success ms-1">Khuyên dùng</span>
-                            </label>
-                            <p class="text-muted small mb-0 mt-1">
-                                Sắp xếp ca khó trước (ít ứng viên, nhiều kỹ năng bắt buộc). Ưu tiên người có ít ca hơn để cân bằng khối lượng công việc.
-                            </p>
+                    <label class="form-label fw-semibold">Thuật toán phân công</label>
+                    <div class="card p-3 border-success border-opacity-50 bg-success-soft">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <i class="bi bi-magic text-success fs-5"></i>
+                            <span class="fw-bold text-dark">Thuật toán phân công tối ưu (Skill Prioritization & Workload Balancing)</span>
                         </div>
-                    </div>
-
-                    <div class="card p-3 border">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="algorithm" id="algo_baseline" value="baseline_greedy">
-                            <label class="form-check-label fw-bold text-dark" for="algo_baseline">
-                                Thuật toán cơ sở (Baseline Greedy)
-                            </label>
-                            <p class="text-muted small mb-0 mt-1">
-                                Duyệt tuần tự theo thứ tự thời gian ca và danh sách đăng ký ban đầu. Dùng để đối chứng thực nghiệm.
-                            </p>
-                        </div>
+                        <p class="text-muted small mb-0">
+                            Sắp xếp các ca trực khó trước, <strong>ưu tiên tình nguyện viên có kỹ năng cần thiết</strong> vào ca (nếu thiếu người, ứng viên khác vẫn được phân công), đồng thời cân bằng khối lượng công việc và tránh trùng lịch tuyệt đối.
+                        </p>
                     </div>
                 </div>
 
@@ -72,13 +56,13 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
     <!-- Thông Tin Ràng Buộc & Phiên Chạy Cũ -->
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-            <h2 class="h5 fw-bold mb-3"><i class="bi bi-shield-check text-success me-2"></i>Ràng Buộc Cứng Được Kiểm Tra</h2>
+            <h2 class="h5 fw-bold mb-3"><i class="bi bi-shield-check text-success me-2"></i>Tiêu Chí & Ràng Buộc Phân Công</h2>
             <ul class="list-unstyled small mb-0">
-                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Kỹ năng:</strong> Không phân công người thiếu kỹ năng bắt buộc của ca.</li>
-                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Đăng ký:</strong> Chỉ phân công người có đơn đã được duyệt; đơn duyệt xác nhận họ có thể tham gia ca.</li>
-                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Xung đột lịch:</strong> Tuyệt đối không phân công một người vào 2 ca bị chồng lấn giờ.</li>
-                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Giới hạn:</strong> Không vượt quá số người tối đa cho phép của ca.</li>
-                <li class="mb-0"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Tính trung thực:</strong> Không tự tạo tình nguyện viên giả để lấp ca thiếu.</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Ưu tiên kỹ năng:</strong> Ưu tiên tình nguyện viên có kỹ năng cần thiết vào ca trước; nếu ca còn chỗ, các tình nguyện viên khác vẫn được phân công vào ca.</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Đơn đăng ký:</strong> Chỉ phân công người có đơn đã được duyệt cho ca đó.</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Không trùng lịch:</strong> Tuyệt đối không phân công một người vào 2 ca bị chồng lấn giờ.</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Giới hạn sĩ số:</strong> Đảm bảo số lượng tối thiểu và không vượt quá số người tối đa cho phép của ca.</li>
+                <li class="mb-0"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Cân bằng khối lượng:</strong> Ưu tiên san sẻ công việc đồng đều giữa các tình nguyện viên.</li>
             </ul>
         </div>
 

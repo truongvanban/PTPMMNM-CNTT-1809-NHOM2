@@ -50,36 +50,27 @@ $baseUrl = rtrim(getenv('APP_URL') ?: 'http://localhost/VolunteerHub/public', '/
             <input type="text" class="form-control" id="location" name="location" value="<?= htmlspecialchars($activity['location'] ?? '') ?>" placeholder="Để trống nếu giống địa điểm chung của hoạt động">
         </div>
 
-        <!-- Yêu cầu Kỹ năng -->
+        <!-- Kỹ năng cần thiết -->
         <div class="mb-4">
-            <label class="form-label fw-semibold">Kỹ năng yêu cầu cho ca trực</label>
+            <label class="form-label fw-semibold"><i class="bi bi-stars text-warning me-1"></i>Kỹ năng cần thiết cho ca trực</label>
             <div class="border rounded p-3 bg-light">
                 <div class="row g-2" id="skillList">
                     <?php foreach ($skills as $sk): ?>
-                        <?php
-                            $skId = (int)$sk['id'];
-                            // Trong form tạo mới chưa có dữ liệu kỹ năng nên tất cả đều chưa checked
-                            $isChecked = false;
-                            $isMandatory = false;
-                        ?>
+                        <?php $skId = (int)$sk['id']; ?>
                         <div class="col-md-6">
-                            <div class="skill-item d-flex align-items-center justify-content-between p-2 bg-white rounded border" data-skill="<?= $skId ?>">
+                            <div class="skill-item d-flex align-items-center p-2 bg-white rounded border" data-skill="<?= $skId ?>">
                                 <div class="form-check m-0">
                                     <input class="form-check-input skill-checkbox" type="checkbox" name="skills[]" value="<?= $skId ?>" id="sk_<?= $skId ?>">
                                     <label class="form-check-label fw-semibold small" for="sk_<?= $skId ?>">
                                         <?= htmlspecialchars($sk['name']) ?>
                                     </label>
                                 </div>
-                                <div class="form-check form-switch m-0 skill-mandatory d-none" title="Bắt buộc">
-                                    <input class="form-check-input skill-toggle" type="checkbox" name="mandatory[<?= $skId ?>]" value="1" id="man_<?= $skId ?>" <?= $isMandatory ? 'checked' : '' ?> disabled>
-                                    <label class="form-check-label small text-danger" for="man_<?= $skId ?>">Bắt buộc</label>
-                                </div>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
             </div>
-            <small class="text-muted">Chỉ đánh dấu "Bắt buộc" cho kỹ năng thực sự cần thiết. Nút gạt chỉ xuất hiện khi bạn đã tích chọn kỹ năng đó.</small>
+            <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Chọn các kỹ năng cần thiết cho ca trực này. Khi chạy thuật toán phân công tự động, hệ thống sẽ ưu tiên các tình nguyện viên có những kỹ năng này vào ca.</small>
         </div>
 
         <div class="mb-4">

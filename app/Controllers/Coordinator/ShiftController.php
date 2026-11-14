@@ -132,15 +132,15 @@ class ShiftController extends Controller
             'location'       => $location,
         ]);
 
-        // Xử lý kỹ năng yêu cầu
+        // Xử lý kỹ năng cần thiết (ưu tiên khi phân công)
         $selectedSkills = $this->post('skills', []);
-        $mandatorySkills = $this->post('mandatory', []);
         $skillsData = [];
         if (is_array($selectedSkills)) {
             foreach ($selectedSkills as $skId) {
                 $skId = (int)$skId;
-                $isMandatory = isset($mandatorySkills[$skId]) ? 1 : 0;
-                $skillsData[] = ['skill_id' => $skId, 'is_mandatory' => $isMandatory];
+                if ($skId > 0) {
+                    $skillsData[] = ['skill_id' => $skId, 'is_mandatory' => 0];
+                }
             }
         }
         $this->shiftModel->setRequiredSkills($shiftId, $skillsData);
@@ -247,16 +247,15 @@ class ShiftController extends Controller
             'status'         => in_array($status, ['open','closed','full','cancelled'], true) ? $status : 'open',
         ]);
 
-        // Cập nhật kỹ năng: CHỈ lưu kỹ năng có ô Checkbox được tích (có trong $_POST['skills']).
-        // Tuyệt đối không lưu kỹ năng chỉ có nút gạt "Bắt buộc" mà không có checkbox.
+        // Cập nhật kỹ năng cần thiết (ưu tiên khi phân công)
         $selectedSkills = $this->post('skills', []);
-        $mandatorySkills = $this->post('mandatory', []);
         $skillsData = [];
         if (is_array($selectedSkills)) {
             foreach ($selectedSkills as $skId) {
                 $skId = (int)$skId;
-                $isMandatory = isset($mandatorySkills[$skId]) ? 1 : 0;
-                $skillsData[] = ['skill_id' => $skId, 'is_mandatory' => $isMandatory];
+                if ($skId > 0) {
+                    $skillsData[] = ['skill_id' => $skId, 'is_mandatory' => 0];
+                }
             }
         }
         $this->shiftModel->setRequiredSkills($shiftId, $skillsData);

@@ -59,17 +59,6 @@ class AssignmentModel extends BaseModel
                )
                AND NOT EXISTS (
                    SELECT 1
-                   FROM shift_required_skills required
-                   WHERE required.shift_id = target.id
-                     AND required.is_mandatory = 1
-                     AND NOT EXISTS (
-                         SELECT 1 FROM volunteer_skills matching
-                         WHERE matching.user_id = u.id
-                           AND matching.skill_id = required.skill_id
-                     )
-               )
-               AND NOT EXISTS (
-                   SELECT 1
                    FROM assignments conflict_assignment
                    INNER JOIN shifts conflict_shift ON conflict_shift.id = conflict_assignment.shift_id
                    WHERE conflict_assignment.user_id = u.id
@@ -352,22 +341,8 @@ class AssignmentModel extends BaseModel
                 return ['success' => false, 'message' => 'Tình nguyện viên này đã được phân công vào ca.'];
             }
 
-            // 3. Kiểm tra kỹ năng bắt buộc
+            // 3. Ghi chú kỹ năng cần thiết (không chặn phân công)
             $reqSkills = $shiftModel->getRequiredSkills($shiftId);
-            $userSkillStmt = $this->db->prepare(
-                "SELECT skill_id FROM volunteer_skills WHERE user_id = ? FOR UPDATE"
-            );
-            $userSkillStmt->execute([$userId]);
-            $userSkillIds = $userSkillStmt->fetchAll(PDO::FETCH_COLUMN);
-
-            foreach ($reqSkills as $rs) {
-                if ($rs['is_mandatory'] && !in_array((int)$rs['skill_id'], array_map('intval', $userSkillIds), true)) {
-                    if ($ownsTransaction) {
-                        $this->db->rollBack();
-                    }
-                    return ['success' => false, 'message' => "Tình nguyện viên thiếu kỹ năng bắt buộc: {$rs['name']}."];
-                }
-            }
 
             // Đơn đăng ký đã duyệt xác nhận người đăng ký có thể tham gia ca này.
             // Vẫn kiểm tra các phân công hiện có để ngăn trùng lịch.

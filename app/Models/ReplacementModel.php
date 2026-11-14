@@ -411,26 +411,20 @@ class ReplacementModel extends BaseModel
             // 2. Kiểm tra xung đột lịch
             if ($shiftModel->hasTimeConflict($uid, $shiftId)) continue;
 
-            // 3. Kiểm tra kỹ năng bắt buộc
-            if (!empty($mandatorySkillIds)) {
-                $skillStmt = $this->db->prepare("SELECT skill_id FROM volunteer_skills WHERE user_id = ?");
-                $skillStmt->execute([$uid]);
-                $userSkills = array_map('intval', $skillStmt->fetchAll(PDO::FETCH_COLUMN));
-                $hasAll = true;
-                foreach ($mandatorySkillIds as $msId) {
-                    if (!in_array($msId, $userSkills, true)) {
-                        $hasAll = false;
-                        break;
-                    }
-                }
-                if (!$hasAll) continue;
-            }
+            // 3. Đếm kỹ năng phù hợp (ưu tiên người có kỹ năng cần thiết)
+            $skillStmt = $this->db->prepare("SELECT skill_id FROM volunteer_skills WHERE user_id = ?");
+            $skillStmt->execute([$uid]);
+            $userSkills = array_map('intval', $skillStmt->fetchAll(PDO::FETCH_COLUMN));
+            $vol['matched_skills_count'] = !empty($mandatorySkillIds) ? count(array_intersect($mandatorySkillIds, $userSkills)) : 0;
 
             $eligible[] = $vol;
         }
 
-        // Ưu tiên tình nguyện viên đang có ít ca phân công hơn.
+        // Ưu tiên người có kỹ năng cần thiết hơn, sau đó đến người có ít ca phân công hơn
         usort($eligible, function($a, $b) {
+            if (($a['matched_skills_count'] ?? 0) !== ($b['matched_skills_count'] ?? 0)) {
+                return ($b['matched_skills_count'] ?? 0) <=> ($a['matched_skills_count'] ?? 0);
+            }
             return $a['current_assignments_count'] <=> $b['current_assignments_count'];
         });
 
@@ -537,16 +531,7 @@ class ReplacementModel extends BaseModel
                     return ['success' => false, 'message' => 'Người thay thế bị trùng lịch với ca khác.'];
                 }
 
-                $reqSkills = $shiftModel->getRequiredSkills($shiftId);
-                $skillStmt = $this->db->prepare("SELECT skill_id FROM volunteer_skills WHERE user_id = ?");
-                $skillStmt->execute([$replacementUserId]);
-                $userSkills = array_map('intval', $skillStmt->fetchAll(PDO::FETCH_COLUMN));
-                foreach ($reqSkills as $rs) {
-                    if ($rs['is_mandatory'] && !in_array((int)$rs['skill_id'], $userSkills, true)) {
-                        $this->db->rollBack();
-                        return ['success' => false, 'message' => "Người thay thế thiếu kỹ năng: {$rs['name']}."];
-                    }
-                }
+                // Kỹ năng cần thiết (không chặn phân công thay thế)
 
                 if ($existingAssignment) {
                     $newAssignId = (int)$existingAssignment['id'];

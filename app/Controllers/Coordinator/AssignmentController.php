@@ -60,11 +60,7 @@ class AssignmentController extends Controller
         $this->verifyCsrf();
         $coordId = (int)Session::userId();
         $activityId = (int)$this->post('activity_id', 0);
-        $algorithm = $this->post('algorithm', 'improved_greedy');
-
-        if (!in_array($algorithm, ['baseline_greedy', 'improved_greedy'], true)) {
-            $algorithm = 'improved_greedy';
-        }
+        $algorithm = 'improved_greedy';
 
         $activity = $this->activityModel->findById($activityId);
         if (!$activity || ((int)$activity['coordinator_id'] !== $coordId && !Session::hasRole('admin'))) {
@@ -75,7 +71,7 @@ class AssignmentController extends Controller
         $runId = $this->assignmentService->runAlgorithm($activityId, $algorithm, $coordId);
 
         $this->redirect("/coordinator/assignment/preview/{$runId}", [
-            'success' => 'Đã chạy thuật toán thành công! Hãy xem trước phương án và kiểm tra các ca thiếu người.'
+            'success' => 'Đã chạy thuật toán phân công thành công! Hãy xem trước phương án và kiểm tra các ca trực.'
         ]);
     }
 
