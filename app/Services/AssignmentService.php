@@ -466,69 +466,63 @@ class AssignmentService
                     return ['success' => false, 'message' => 'Có tình nguyện viên không còn hoạt động trong phương án. Vui lòng chạy lại thuật toán.'];
                 }
 
+                $activityId = (int)$run['activity_id'];
+
                 foreach ($proposedByShift as $shiftId => $userIdsForShift) {
                     foreach ($userIdsForShift as $userId) {
                         $conflictStmt = $this->db->prepare(
-                                "SELECT conflict_assignment.id
-                                 FROM assignments conflict_assignment
-                                 JOIN shifts conflict_shift ON conflict_shift.id = conflict_assignment.shift_id
-                                 WHERE conflict_assignment.user_id = ?
-                                   AND conflict_assignment.status NOT IN ('removed', 'replaced', 'absent')
-                                   AND conflict_assignment.shift_id != ?
-                                   AND TIMESTAMP(conflict_shift.date, conflict_shift.time_start) <
-                                       CASE
-                                           WHEN ? <= ? THEN DATE_ADD(TIMESTAMP(?, ?), INTERVAL 1 DAY)
-                                           ELSE TIMESTAMP(?, ?)
-                                       END
-                                   AND CASE
-                                           WHEN conflict_shift.time_end <= conflict_shift.time_start
-                                               THEN DATE_ADD(TIMESTAMP(conflict_shift.date, conflict_shift.time_end), INTERVAL 1 DAY)
-                                           ELSE TIMESTAMP(conflict_shift.date, conflict_shift.time_end)
-                                       END > TIMESTAMP(?, ?)
-                                 LIMIT 1
-                                 FOR UPDATE"
-                            );
-                            $conflictStmt->execute([
-                                $userId,
-                                $shiftId,
-                                $shiftsById[$shiftId]['time_end'],
-                                $shiftsById[$shiftId]['time_start'],
-                                $shiftsById[$shiftId]['date'],
-                                $shiftsById[$shiftId]['time_end'],
-                                $shiftsById[$shiftId]['date'],
-                                $shiftsById[$shiftId]['time_end'],
-                                $shiftsById[$shiftId]['date'],
-                                $shiftsById[$shiftId]['time_start'],
-                            ]);
-                            if ($conflictStmt->fetchColumn()) {
-                                $this->db->rollBack();
-                                return ['success' => false, 'message' => 'Tình nguyện viên đã được phân công ca trùng lịch. Vui lòng chạy lại phương án.'];
-                            }
-
-                            $existingStmt = $this->db->prepare(
-                                "SELECT id FROM assignments
-                                 WHERE shift_id = ? AND user_id = ?
-                                   AND status NOT IN ('removed', 'replaced', 'absent')
-                                 LIMIT 1
-                                 FOR UPDATE"
-                            );
-                            $existingStmt->execute([$shiftId, $userId]);
-                            if ($existingStmt->fetchColumn()) {
-                                $this->db->rollBack();
-                                return ['success' => false, 'message' => 'Tình nguyện viên đã có phân công ở ca này. Vui lòng chạy lại phương án.'];
-                            }
+                            "SELECT conflict_assignment.id
+                             FROM assignments conflict_assignment
+                             JOIN shifts conflict_shift ON conflict_shift.id = conflict_assignment.shift_id
+                             WHERE conflict_assignment.user_id = ?
+                               AND conflict_assignment.status NOT IN ('removed', 'replaced', 'absent')
+                               AND conflict_assignment.shift_id != ?
+                               AND conflict_shift.activity_id != ?
+                               AND TIMESTAMP(conflict_shift.date, conflict_shift.time_start) <
+                                   CASE
+                                       WHEN ? <= ? THEN DATE_ADD(TIMESTAMP(?, ?), INTERVAL 1 DAY)
+                                       ELSE TIMESTAMP(?, ?)
+                                   END
+                               AND CASE
+                                       WHEN conflict_shift.time_end <= conflict_shift.time_start
+                                           THEN DATE_ADD(TIMESTAMP(conflict_shift.date, conflict_shift.time_end), INTERVAL 1 DAY)
+                                       ELSE TIMESTAMP(conflict_shift.date, conflict_shift.time_end)
+                                   END > TIMESTAMP(?, ?)
+                             LIMIT 1
+                             FOR UPDATE"
+                        );
+                        $conflictStmt->execute([
+                            $userId,
+                            $shiftId,
+                            $activityId,
+                            $shiftsById[$shiftId]['time_end'],
+                            $shiftsById[$shiftId]['time_start'],
+                            $shiftsById[$shiftId]['date'],
+                            $shiftsById[$shiftId]['time_end'],
+                            $shiftsById[$shiftId]['date'],
+                            $shiftsById[$shiftId]['time_end'],
+                            $shiftsById[$shiftId]['date'],
+                            $shiftsById[$shiftId]['time_start'],
+                        ]);
+                        if ($conflictStmt->fetchColumn()) {
+                            $this->db->rollBack();
+                            return ['success' => false, 'message' => 'Tình nguyện viên đã được phân công ca trùng lịch ở hoạt động khác. Vui lòng kiểm tra lại.'];
                         }
+                    }
 
-                    $assignedCountStmt = $this->db->prepare(
-                        "SELECT COUNT(*) FROM assignments
+                    // Kiểm tra sức chứa ca: tính tổng số TNV duy nhất trong ca sau khi áp dụng phương án (tránh đếm trùng)
+                    $existingUsersStmt = $this->db->prepare(
+                        "SELECT user_id FROM assignments
                          WHERE shift_id = ? AND status NOT IN ('removed', 'replaced', 'absent')
                          FOR UPDATE"
                     );
-                    $assignedCountStmt->execute([$shiftId]);
-                    $existingCount = (int)$assignedCountStmt->fetchColumn();
-                    if ($existingCount + count($userIdsForShift) > (int)$shiftsById[$shiftId]['max_volunteers']) {
+                    $existingUsersStmt->execute([$shiftId]);
+                    $existingShiftUserIds = array_map('intval', $existingUsersStmt->fetchAll(PDO::FETCH_COLUMN));
+                    $allShiftUserIds = array_unique(array_merge($existingShiftUserIds, $userIdsForShift));
+
+                    if (count($allShiftUserIds) > (int)$shiftsById[$shiftId]['max_volunteers']) {
                         $this->db->rollBack();
-                        return ['success' => false, 'message' => 'Sức chứa ca đã thay đổi sau khi xem trước. Vui lòng chạy lại phương án.'];
+                        return ['success' => false, 'message' => 'Số lượng phân công vượt quá sức chứa tối đa của ca trực. Vui lòng kiểm tra lại.'];
                     }
                 }
 
@@ -573,6 +567,24 @@ class AssignmentService
                 "INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, 'assignment', ?, ?, '/volunteer/schedule')"
             );
 
+            // Thu hồi phân công cũ trong hoạt động này nếu không còn nằm trong phương án mới
+            foreach ($shiftsById as $sId => $sData) {
+                $assignedInThisShift = $proposedByShift[$sId] ?? [];
+                if (!empty($assignedInThisShift)) {
+                    $pHolders = implode(',', array_fill(0, count($assignedInThisShift), '?'));
+                    $cleanStmt = $this->db->prepare(
+                        "UPDATE assignments SET status = 'removed', updated_at = NOW()
+                         WHERE shift_id = ? AND status = 'assigned' AND user_id NOT IN ($pHolders)"
+                    );
+                    $cleanStmt->execute(array_merge([$sId], $assignedInThisShift));
+                } else {
+                    $this->db->prepare(
+                        "UPDATE assignments SET status = 'removed', updated_at = NOW()
+                         WHERE shift_id = ? AND status = 'assigned'"
+                    )->execute([$sId]);
+                }
+            }
+
             foreach ($items as $item) {
                 $shiftId = (int)$item['shift_id'];
                 $assignedUsers = json_decode($item['assigned_users'] ?? '[]', true) ?: [];
@@ -580,6 +592,12 @@ class AssignmentService
                 foreach ($assignedUsers as $uid) {
                     $uid = (int)$uid;
                     $assignStmt->execute([$runId, $shiftId, $uid, $confirmedBy]);
+
+                    // Đồng bộ trạng thái đơn đăng ký thành approved nếu chưa duyệt
+                    $this->db->prepare(
+                        "UPDATE registrations SET status = 'approved', updated_at = NOW()
+                         WHERE shift_id = ? AND user_id = ? AND status != 'approved'"
+                    )->execute([$shiftId, $uid]);
 
                     // Tìm assignment ID
                     $findStmt = $this->db->prepare("SELECT id FROM assignments WHERE shift_id = ? AND user_id = ? LIMIT 1");
